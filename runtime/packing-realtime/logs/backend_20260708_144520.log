@@ -1,0 +1,64 @@
+[LOG] 后端日志文件：D:\research_code\zhuang-ui\runtime\packing-realtime\logs\backend_20260708_144520.log
+[LOG] 本次结果将输出到：D:\research_code\zhuang-ui\runtime\packing-realtime\exports\ui_packing_plan_20260708_144520.json
+[CMD] D:\research_code\zhuang-ui\.venvs\packing-realtime\Scripts\python.exe D:\research_code\zhuang-ui\zhuangxiang_code\code\run_packing.py --config D:\research_code\zhuang-ui\runtime\packing-realtime\temp\ui_config_normal_20260708_144519.yaml --out D:\research_code\zhuang-ui\runtime\packing-realtime\exports\ui_packing_plan_20260708_144520.json
+已加载约束配置：D:\research_code\zhuang-ui\runtime\packing-realtime\temp\ui_config_normal_20260708_144519.yaml
+load D:\research_code\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\zlib1.dll...
+load D:\research_code\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\abseil_dll.dll...
+load D:\research_code\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\utf8_validity.dll...
+load D:\research_code\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\re2.dll...
+load D:\research_code\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\libprotobuf.dll...
+load D:\research_code\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\highs.dll...
+load D:\research_code\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\ortools.dll...
+已加载配置数据集：D:\research_code\zhuang-ui\zhuangxiang_code\data\ui_inputs\20260708_144518_7_3_5000.xlsx
+检测到小箱子体积阈值: 22260000.00 mm^3
+小箱子数量: 235，非小箱子数量: 4765
+数据预处理和箱子分组完成（按托盘类型+销售订单号）。
+----------------------------------------
+  - 组内子聚类：1 个混合订单拆出规则子集走 GCP、杂箱走 baseline。
+正在处理托盘类型：MH423C，销售订单号：PAIN25450MN01S
+  - 该分组不适合列式（多非满柱）→ 回退 beam + 配方优先。
+  - 托盘 MH423C-PAIN25450MN01S-23 未找到可行装箱方案，启用剩余箱子守恒兜底。
+  - 配方优先[fast]：规划 84 实例，实装成功 78，失败回兜底 6；达标 79，直接采用配方方案（基线未跑，--safe 可审计对比）。
+  - 指数诊断：箱子 2720 个，总指数 18255，目标 192，理论最多达标托盘 95 个，剩余指数 15。
+  - 几何诊断：典型整层堆叠单盘参考上限 238/192。
+  - 失败托盘互借诊断：跳过高耗时互借重打包。分层 near/mid/deep=0/2/32，默认仅执行低成本局部补洞和快速补齐。
+托盘类型 MH423C（销售订单号：PAIN25450MN01S）处理完成：总托盘 113，指数达标 79，未达标 34，平均缺口 101.21，最大缺口 190.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/2/32，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=28.29s，main_topup=6.72s，retry=3.75s，failed_pool=0.66s，repack=1.85s，total=40.78s。
+正在处理托盘类型：MH423C，销售订单号：PAIN25450MZ06S
+  - 主算法：全局列式装箱 + 柱级组合优化（GCP）。
+托盘类型 MH423C（销售订单号：PAIN25450MZ06S）处理完成：总托盘 56，指数达标 55，未达标 1，平均缺口 121.00，最大缺口 121.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/0/1，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=1.19s，main_topup=0.00s，retry=0.00s，failed_pool=0.00s，repack=0.00s，total=1.20s。
+正在处理托盘类型：MH423C，销售订单号：PAIN25450MZ06S__SPLITREST__
+  - 该分组不适合列式（多非满柱）→ 回退 beam + 配方优先。
+  - 配方优先[fast]：规划 0 实例，实装成功 0，配方路径不可用 → 采用基线方案。
+  - 指数诊断：箱子 97 个，总指数 716，目标 192，理论最多达标托盘 3 个，剩余指数 140。
+  - 几何诊断：典型整层堆叠单盘参考上限 108/192。 当前目标可能受托盘高度/箱型组合限制。
+  - 几何不可达标记：典型整层上限 108 < 目标 192，救援优先压缩托盘数和填充率。
+  - 失败托盘互借诊断：跳过高耗时互借重打包。分层 near/mid/deep=0/0/7，默认仅执行低成本局部补洞和快速补齐。
+托盘类型 MH423C（销售订单号：PAIN25450MZ06S__SPLITREST__）处理完成：总托盘 7，指数达标 0，未达标 7，平均缺口 89.71，最大缺口 152.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/0/7，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=0.59s，main_topup=0.03s，retry=0.00s，failed_pool=0.00s，repack=0.00s，total=0.62s。
+正在处理托盘类型：MH423C，销售订单号：PAIN25460MN01S
+  - 该分组不适合列式（多非满柱）→ 回退 beam + 配方优先。
+  - 托盘 MH423C-PAIN25460MN01S-4 未找到可行装箱方案，启用剩余箱子守恒兜底。
+  - 配方优先[fast]：规划 7 实例，实装成功 7，失败回兜底 0；达标 8，直接采用配方方案（基线未跑，--safe 可审计对比）。
+  - 指数诊断：箱子 290 个，总指数 1955，目标 192，理论最多达标托盘 10 个，剩余指数 35。
+  - 几何诊断：典型整层堆叠单盘参考上限 192/192。
+  - 失败托盘互借诊断：跳过高耗时互借重打包。分层 near/mid/deep=0/1/5，默认仅执行低成本局部补洞和快速补齐。
+托盘类型 MH423C（销售订单号：PAIN25460MN01S）处理完成：总托盘 13，指数达标 8，未达标 5，平均缺口 108.20，最大缺口 163.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/1/4，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=2.30s，main_topup=0.03s，retry=0.00s，failed_pool=2.41s，repack=3.04s，total=5.96s。
+========================================
+统计汇总：总托盘 189，指数达标 142，未达标 47，未知 0，平均缺口 100.66，最大缺口 190.00，失败托盘互借修复成功 0
+KPI汇总：near/mid/deep=0/3/44，pair尝试=0，pair改进=0，pair效率=0.00%
+耗时汇总：packing=32.37s，main_topup=6.79s，retry=3.75s，repack=4.89s，end_to_end=53.31s
+========================================
+========================================
+最终装箱方案已保存至：D:\research_code\zhuang-ui\zhuangxiang_code\output\packing_plan_20260708_144614.json
+托盘统计Excel已保存至：D:\research_code\zhuang-ui\zhuangxiang_code\output\packing_plan_summary_20260708_144614.xlsx
+========================================
+算法总运行时间：53.31 秒
+========================================
+方案另存为: D:\research_code\zhuang-ui\runtime\packing-realtime\exports\ui_packing_plan_20260708_144520.json

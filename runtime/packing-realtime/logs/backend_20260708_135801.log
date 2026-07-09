@@ -1,0 +1,3 @@
+[LOG] 后端日志文件：D:\research_code\zhuang-ui\runtime\packing-realtime\logs\backend_20260708_135801.log
+[LOG] 本次结果将输出到：D:\research_code\zhuang-ui\runtime\packing-realtime\exports\ui_packing_plan_20260708_135801.json
+[CMD] D:\research_code\zhuang-ui\.venvs\packing-realtime\Scripts\python.exe D:\research_code\zhuang-ui\zhuangxiang_code\code\run_packing.py --config D:\research_code\zhuang-ui\runtime\packing-realtime\temp\ui_config_incremental_20260708_135758.yaml --out D:\research_code\zhuang-ui\runtime\packing-realtime\exports\ui_packing_plan_20260708_135801.json

@@ -1,0 +1,9 @@
+# 装箱算法运行依赖
+# 运行环境：Python 3.8.x（当前验证版本 3.8.8）
+# 版本已 pin 到本机验证通过的版本，建议交付时一致安装。
+
+ortools==9.12.4544    # CP-SAT 求解器；缺失时 GCP 主算法自动降级为贪心（达标率下降），强烈建议安装
+pandas==2.0.3         # 读取 Excel 输入 / 写出统计 Excel
+numpy==1.22.4         # 小箱阈值检测等数值计算
+openpyxl==3.0.7       # pandas 读写 .xlsx 的引擎（必装）
+PyYAML==5.4.1         # 解析 config/packing_config.yaml

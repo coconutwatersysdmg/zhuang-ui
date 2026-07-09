@@ -1,0 +1,4 @@
+[LOG] 后端日志文件：E:\research_code\zhuang-ui\runtime\packing-realtime\logs\backend_20260707_100843.log
+[LOG] 本次结果将输出到：E:\research_code\zhuang-ui\runtime\packing-realtime\exports\ui_packing_plan_20260707_100843.json
+[CMD] E:\research_code\zhuang-ui\.venvs\packing-realtime\Scripts\python.exe E:\research_code\zhuang-ui\zhuangxiang_code\code\run_packing.py --config E:\research_code\zhuang-ui\runtime\packing-realtime\temp\ui_config_normal_20260707_100453.yaml --out E:\research_code\zhuang-ui\runtime\packing-realtime\exports\ui_packing_plan_20260707_100843.json
+[UI] 后端装箱已停止。

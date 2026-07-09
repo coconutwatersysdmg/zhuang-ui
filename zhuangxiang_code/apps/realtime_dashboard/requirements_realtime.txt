@@ -1,0 +1,7 @@
+PyQt5==5.15.10
+numpy==1.26.4
+pandas==2.2.2
+pyqtgraph==0.13.7
+PyOpenGL==3.1.7
+openpyxl==3.1.5
+PyYAML==6.0.2

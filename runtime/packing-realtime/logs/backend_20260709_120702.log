@@ -1,0 +1,33 @@
+[LOG] 后端日志文件：D:\research_code\zhuang-ui\runtime\packing-realtime\logs\backend_20260709_120702.log
+[LOG] 本次结果将输出到：D:\research_code\zhuang-ui\runtime\packing-realtime\exports\ui_packing_plan_20260709_120702.json
+[CMD] D:\research_code\zhuang-ui\.venvs\packing-realtime\Scripts\python.exe D:\research_code\zhuang-ui\zhuangxiang_code\code\run_packing.py --config D:\research_code\zhuang-ui\runtime\packing-realtime\temp\ui_config_normal_20260709_120701.yaml --out D:\research_code\zhuang-ui\runtime\packing-realtime\exports\ui_packing_plan_20260709_120702.json
+已加载约束配置：D:\research_code\zhuang-ui\runtime\packing-realtime\temp\ui_config_normal_20260709_120701.yaml
+load D:\research_code\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\zlib1.dll...
+load D:\research_code\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\abseil_dll.dll...
+load D:\research_code\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\utf8_validity.dll...
+load D:\research_code\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\re2.dll...
+load D:\research_code\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\libprotobuf.dll...
+load D:\research_code\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\highs.dll...
+load D:\research_code\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\ortools.dll...
+已加载配置数据集：D:\research_code\zhuang-ui\zhuangxiang_code\data\ui_inputs\20260709_120701_668.xlsx
+检测到小箱子体积阈值: 11130000.00 mm^3
+小箱子数量: 0，非小箱子数量: 668
+数据预处理和箱子分组完成（按托盘类型+销售订单号）。
+----------------------------------------
+正在处理托盘类型：MH423C，销售订单号：ANALYSIS_001
+  - 主算法：全局列式装箱 + 柱级组合优化（GCP）。
+托盘类型 MH423C（销售订单号：ANALYSIS_001）处理完成：总托盘 11，指数达标 11，未达标 0，平均缺口 0.00，最大缺口 0.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/0/0，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=0.82s，main_topup=0.00s，retry=0.00s，failed_pool=0.00s，repack=0.00s，total=0.83s。
+========================================
+统计汇总：总托盘 11，指数达标 11，未达标 0，未知 0，平均缺口 0.00，最大缺口 0.00，失败托盘互借修复成功 0
+KPI汇总：near/mid/deep=0/0/0，pair尝试=0，pair改进=0，pair效率=0.00%
+耗时汇总：packing=0.82s，main_topup=0.00s，retry=0.00s，repack=0.00s，end_to_end=4.61s
+========================================
+========================================
+最终装箱方案已保存至：D:\research_code\zhuang-ui\zhuangxiang_code\output\packing_plan_20260709_120707.json
+托盘统计Excel已保存至：D:\research_code\zhuang-ui\zhuangxiang_code\output\packing_plan_summary_20260709_120707.xlsx
+========================================
+算法总运行时间：4.61 秒
+========================================
+方案另存为: D:\research_code\zhuang-ui\runtime\packing-realtime\exports\ui_packing_plan_20260709_120702.json

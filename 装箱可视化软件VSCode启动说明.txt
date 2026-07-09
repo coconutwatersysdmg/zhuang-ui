@@ -1,0 +1,107 @@
+装箱可视化软件 VSCode 打开说明（新电脑 D盘版）
+================================================
+
+项目路径：
+D:\research_code\zhuang-ui
+
+一、以后日常打开步骤
+------------------
+1. 打开 VSCode
+2. 点击【文件】→【打开文件夹】
+3. 选择：
+   D:\research_code\zhuang-ui
+
+4. 打开 VSCode 底部终端：
+   Ctrl + `
+
+5. 复制本文最后的【日常启动指令】整段运行。
+
+
+二、正常使用流程
+----------------
+软件打开后，按照下面顺序使用：
+
+选择Excel → 一键装箱 → 查看3D结果 / 箱子列表 / 失败列表 / 稳定性分析
+
+
+三、如果提示缺少 yaml / PyYAML / PyQt5 / numpy 等模块
+-----------------------------------------------------
+说明当前虚拟环境依赖没有装完整。
+
+这种情况下，先复制本文最后的【依赖修复指令】整段运行一次。
+修复完成后，以后只需要运行【日常启动指令】。
+
+
+四、日常启动指令
+----------------
+以后正常打开软件，直接复制下面整段到 VSCode 终端运行：
+
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+
+D:
+cd D:\research_code\zhuang-ui
+.\.venvs\packing-realtime\Scripts\Activate.ps1
+cd .\zhuangxiang_code
+.\tools\windows\start_realtime_dashboard_v3_clean.bat
+
+
+五、依赖修复指令
+----------------
+如果启动时报缺少模块，或者提示 No module named yaml / PyYAML is required，
+复制下面整段到 VSCode 终端运行：
+
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+
+D:
+cd D:\research_code\zhuang-ui
+.\.venvs\packing-realtime\Scripts\Activate.ps1
+cd .\zhuangxiang_code
+
+$env:HTTP_PROXY=""
+$env:HTTPS_PROXY=""
+$env:ALL_PROXY=""
+$env:http_proxy=""
+$env:https_proxy=""
+$env:all_proxy=""
+$env:NO_PROXY="*"
+$env:no_proxy="*"
+
+netsh winhttp reset proxy
+
+python -m pip install --isolated --no-cache-dir --index-url https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn PyYAML==6.0.2 PyQt5==5.15.10 numpy==1.26.4 pandas==2.2.2 pyqtgraph==0.13.7 PyOpenGL==3.1.7 openpyxl==3.1.5 ortools==9.12.4544 matplotlib==3.9.2
+
+.\tools\windows\start_realtime_dashboard_v3_clean.bat
+
+
+六、如果虚拟环境彻底坏了
+------------------------
+如果出现 No Python at ... 或虚拟环境路径错误，复制下面整段重建环境：
+
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+
+D:
+cd D:\research_code\zhuang-ui
+
+Remove-Item -Recurse -Force .\.venvs\packing-realtime -ErrorAction SilentlyContinue
+
+py -3.11 -m venv .\.venvs\packing-realtime
+
+.\.venvs\packing-realtime\Scripts\Activate.ps1
+
+python -m pip install --isolated --no-cache-dir --index-url https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn PyYAML==6.0.2 PyQt5==5.15.10 numpy==1.26.4 pandas==2.2.2 pyqtgraph==0.13.7 PyOpenGL==3.1.7 openpyxl==3.1.5 ortools==9.12.4544 matplotlib==3.9.2
+
+cd .\zhuangxiang_code
+.\tools\windows\start_realtime_dashboard_v3_clean.bat
+
+
+七、最常用的就是这一段
+----------------------
+日常只复制这一段即可：
+
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+
+D:
+cd D:\research_code\zhuang-ui
+.\.venvs\packing-realtime\Scripts\Activate.ps1
+cd .\zhuangxiang_code
+.\tools\windows\start_realtime_dashboard_v3_clean.bat

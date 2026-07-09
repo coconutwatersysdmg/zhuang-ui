@@ -1,0 +1,52 @@
+run_mode: normal
+incremental:
+  source_file: ui_inputs/20260709_124333_668.xlsx
+pallets:
+  MH423C:
+    length: 1440.0
+    width: 2240.0
+    height: 720.0
+    target_index: 192
+constraints:
+  main_packer: gcp
+  max_box_gap_mm: 6.0
+  support_ratio_threshold: 0.8
+  center_of_mass_tolerance: 0.3333333333333333
+  suction_reachability_enabled: true
+  small_box_below_enabled: true
+  same_size_heavier_below_enabled: true
+  height_multiple_layering_enabled: true
+  suction_cup_length: 600.0
+  suction_cup_width: 800.0
+  suction_xy_clearance: 0.0
+  suction_z_clearance: 0.0
+  suction_allow_rotation_90: true
+  allow_box_rotation_90: true
+tolerances:
+  xy_tolerance: 2.0
+  z_tolerance: 0.0
+algorithm:
+  num_restarts: 30
+  beam_width: 6
+  candidate_limit: 30
+  max_candidate_points: 200
+  max_points_per_layer: 40
+rescue:
+  max_gap: 64.0
+  max_attempts: 80
+  topup_max_donor_scan: 80
+  hole_fill_max_donor_scan: 160
+  hole_fill_max_add_items: 8
+  recipe_max_group_boxes: 400
+  recipe_max_count: 12
+small_box_detection:
+  index_smooth_window: 5
+  index_plateau_window: 6
+  index_plateau_rel_tol: 0.02
+  index_plateau_abs_tol: 0.8
+  index_min_slope_window: 3
+  index_near_peak_gap: 0.15
+excel_data:
+  source_file: ui_inputs/20260709_124333_668.xlsx
+  result_sheet: 最终挑选结果
+  bms_sheet: 包装物料主数据(BMS)

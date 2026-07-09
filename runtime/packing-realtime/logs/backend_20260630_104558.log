@@ -1,0 +1,48 @@
+[LOG] 后端日志文件：E:\research_code\zhuang-ui\runtime\packing-realtime\logs\backend_20260630_104558.log
+[LOG] 本次结果将输出到：E:\research_code\zhuang-ui\runtime\packing-realtime\exports\ui_packing_plan_20260630_104558.json
+[CMD] E:\research_code\zhuang-ui\.venvs\packing-realtime\Scripts\python.exe E:\research_code\zhuang-ui\zhuangxiang_code\code\run_packing.py --config E:\research_code\zhuang-ui\runtime\packing-realtime\temp\ui_config_normal_20260630_104558.yaml --out E:\research_code\zhuang-ui\runtime\packing-realtime\exports\ui_packing_plan_20260630_104558.json
+已加载约束配置：E:\research_code\zhuang-ui\runtime\packing-realtime\temp\ui_config_normal_20260630_104558.yaml
+已加载配置数据集：E:\research_code\zhuang-ui\zhuangxiang_code\data\ui_inputs\20260630_104557_selected_5000_boxes_9_1_concentrated_3orders.xlsx
+检测到小箱子体积阈值: 11130000.00 mm^3
+小箱子数量: 53，非小箱子数量: 4947
+数据预处理和箱子分组完成（按托盘类型+销售订单号）。
+----------------------------------------
+正在处理托盘类型：MH423C，销售订单号：PAIN25450MN01S
+  - 该分组不适合列式（多非满柱）→ 回退 beam + 配方优先。
+  - 配方优先[fast]：规划 83 实例，实装成功 78，失败回兜底 5；达标 80，直接采用配方方案（基线未跑，--safe 可审计对比）。
+  - 指数诊断：箱子 3040 个，总指数 18184.5，目标 192，理论最多达标托盘 94 个，剩余指数 136.5。
+  - 几何诊断：典型整层堆叠单盘参考上限 238/192。
+  - 失败托盘互借诊断：跳过高耗时互借重打包。分层 near/mid/deep=1/2/20，默认仅执行低成本局部补洞和快速补齐。
+托盘类型 MH423C（销售订单号：PAIN25450MN01S）处理完成：总托盘 103，指数达标 80，未达标 23，平均缺口 69.67，最大缺口 176.50，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=1/2/20，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=53.28s，main_topup=10.07s，retry=13.83s，failed_pool=2.04s，repack=6.51s，total=83.78s。
+正在处理托盘类型：MH423C，销售订单号：PAIN25450MZ06S
+  - 该分组不适合列式（多非满柱）→ 回退 beam + 配方优先。
+  - 配方优先[fast]：规划 13 实例，实装成功 13，失败回兜底 0；达标 13，直接采用配方方案（基线未跑，--safe 可审计对比）。
+  - 指数诊断：箱子 640 个，总指数 4062，目标 192，理论最多达标托盘 21 个，剩余指数 30。
+  - 几何诊断：典型整层堆叠单盘参考上限 192/192。
+  - 失败托盘互借诊断：跳过高耗时互借重打包。分层 near/mid/deep=0/1/13，默认仅执行低成本局部补洞和快速补齐。
+托盘类型 MH423C（销售订单号：PAIN25450MZ06S）处理完成：总托盘 27，指数达标 13，未达标 14，平均缺口 80.14，最大缺口 174.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/1/13，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=2.58s，main_topup=1.01s，retry=0.00s，failed_pool=0.45s，repack=4.08s，total=7.69s。
+正在处理托盘类型：MH423C，销售订单号：PAIN25460MN01S
+  - 该分组不适合列式（多非满柱）→ 回退 beam + 配方优先。
+  - 配方优先[fast]：规划 48 实例，实装成功 47，失败回兜底 1；达标 48，直接采用配方方案（基线未跑，--safe 可审计对比）。
+  - 指数诊断：箱子 1320 个，总指数 9771，目标 192，理论最多达标托盘 50 个，剩余指数 171。
+  - 几何诊断：典型整层堆叠单盘参考上限 192/192。
+  - 失败托盘互借诊断：跳过高耗时互借重打包。分层 near/mid/deep=0/2/2，默认仅执行低成本局部补洞和快速补齐。
+托盘类型 MH423C（销售订单号：PAIN25460MN01S）处理完成：总托盘 52，指数达标 48，未达标 4，平均缺口 53.50，最大缺口 132.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/2/2，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=6.74s，main_topup=0.20s，retry=0.00s，failed_pool=3.56s，repack=3.86s，total=10.82s。
+========================================
+统计汇总：总托盘 182，指数达标 141，未达标 41，未知 0，平均缺口 71.67，最大缺口 176.50，失败托盘互借修复成功 0
+KPI汇总：near/mid/deep=1/5/35，pair尝试=0，pair改进=0，pair效率=0.00%
+耗时汇总：packing=62.60s，main_topup=11.29s，retry=13.83s，repack=14.44s，end_to_end=110.75s
+========================================
+========================================
+最终装箱方案已保存至：E:\research_code\zhuang-ui\zhuangxiang_code\output\packing_plan_20260630_104750.json
+托盘统计Excel已保存至：E:\research_code\zhuang-ui\zhuangxiang_code\output\packing_plan_summary_20260630_104750.xlsx
+========================================
+算法总运行时间：110.75 秒
+========================================
+方案另存为: E:\research_code\zhuang-ui\runtime\packing-realtime\exports\ui_packing_plan_20260630_104558.json
