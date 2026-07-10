@@ -65,3 +65,11 @@ excel_data:
   source_file: selected_5000_boxes_9_1_concentrated_3orders.xlsx
   result_sheet: 最终挑选结果
   bms_sheet: 包装物料主数据(BMS)
+
+# 数据源：manual=用户/配置 Excel；api=WCS 接口常驻拉取（每 download_interval 秒）
+data_source:
+  mode: manual
+  api_base_url: "https://3c3758c8-755a-499e-b580-76afda706e5e.mock.pstmn.io"
+  download_interval: 200
+  input_dir: input
+  bms_reference_file: 668箱子数据集.xlsx

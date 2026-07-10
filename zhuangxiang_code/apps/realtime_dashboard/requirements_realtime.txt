@@ -5,3 +5,4 @@ pyqtgraph==0.13.7
 PyOpenGL==3.1.7
 openpyxl==3.1.5
 PyYAML==6.0.2
+requests>=2.28.0

@@ -8,7 +8,7 @@ if defined _OLD_CODEPAGE (
     "%SystemRoot%\System32\chcp.com" 65001 > nul
 )
 
-set VIRTUAL_ENV=D:\research_code\zhuang-ui\.venvs\packing-realtime
+set VIRTUAL_ENV=E:\Homework\AA装箱\装箱和可视化\zhuang-ui\.venvs\packing-realtime
 
 if not defined PROMPT set PROMPT=$P$G
 

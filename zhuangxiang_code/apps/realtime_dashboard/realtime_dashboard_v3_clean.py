@@ -18,11 +18,13 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import queue
 import re
 import shutil
 import signal
 import subprocess
 import sys
+import threading
 import time
 from datetime import datetime
 from pathlib import Path
@@ -169,6 +171,35 @@ def _write_ui_config(project_dir: Path, base_config_path: Path, excel_copy_path:
     return cfg_path
 
 
+def _write_ui_config_api_only(project_dir: Path, base_config_path: Path) -> Path:
+    config = _load_yaml(base_config_path)
+    base_excel = (config.get("excel_data") or {}).get("source_file")
+    bms_ref = (config.get("data_source") or {}).get("bms_reference_file") or base_excel or "668箱子数据集.xlsx"
+
+    config["run_mode"] = "normal"
+    config["data_source"] = {
+        "mode": "api",
+        "api_base_url": (config.get("data_source") or {}).get(
+            "api_base_url",
+            "https://3c3758c8-755a-499e-b580-76afda706e5e.mock.pstmn.io",
+        ),
+        "download_interval": int((config.get("data_source") or {}).get("download_interval", 200) or 200),
+        "input_dir": (config.get("data_source") or {}).get("input_dir", "input"),
+        "bms_reference_file": bms_ref,
+    }
+
+    temp_dir = _runtime_temp_dir(project_dir)
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    cfg_path = temp_dir / f"ui_config_api_{stamp}.yaml"
+    with open(cfg_path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(config, f, allow_unicode=True, sort_keys=False)
+    return cfg_path
+
+
+_UI_RESULT_RE = re.compile(r"\[UI-RESULT\]\s*(.+)$")
+
+
 def _make_out_path(project_dir: Path, prefix: str = "ui_packing_plan") -> Path:
     out_dir = _runtime_exports_dir(project_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -186,20 +217,29 @@ def _is_valid_packing_json(path: Path) -> bool:
 
 
 class UiPackingWorker(QtCore.QThread):
-    """Run backend with an explicit --out JSON path, then emit that exact file."""
+    """Run backend; manual mode uses --out once, api mode keeps process alive."""
 
     log = QtCore.pyqtSignal(str)
     started_cmd = QtCore.pyqtSignal(str)
     finished_json = QtCore.pyqtSignal(str)
     failed = QtCore.pyqtSignal(str)
 
-    def __init__(self, project_dir: Path, config_path: Path, out_path: Path, parent=None):
+    def __init__(
+        self,
+        project_dir: Path,
+        config_path: Path,
+        out_path: Optional[Path] = None,
+        api_mode: bool = False,
+        parent=None,
+    ):
         super().__init__(parent)
         self.project_dir = Path(project_dir).resolve()
         self.config_path = Path(config_path).resolve()
-        self.out_path = Path(out_path).resolve()
+        self.out_path = Path(out_path).resolve() if out_path else None
+        self.api_mode = api_mode
         self.process: Optional[subprocess.Popen] = None
         self._stop_requested = False
+        self._emitted_results: set[str] = set()
         ensure_runtime_dirs(self.project_dir)
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.log_file = log_dir_from_project(self.project_dir) / f"backend_{stamp}.log"
@@ -229,6 +269,155 @@ class UiPackingWorker(QtCore.QThread):
         self.log.emit(text)
         self._write_backend_log(text)
 
+    def _maybe_emit_ui_result(self, line: str) -> None:
+        match = _UI_RESULT_RE.search(line)
+        if not match:
+            return
+        path = Path(match.group(1).strip().strip('"'))
+        if path.exists() and _is_valid_packing_json(path):
+            key = str(path.resolve())
+            if key not in self._emitted_results:
+                self._emitted_results.add(key)
+                self.finished_json.emit(key)
+
+    def _spawn_process(self, cmd: list) -> subprocess.Popen:
+        env = os.environ.copy()
+        env["PYTHONIOENCODING"] = "utf-8"
+        env["PYTHONUTF8"] = "1"
+        creationflags = 0
+        preexec_fn = None
+        if os.name == "nt":
+            creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
+        else:
+            preexec_fn = os.setsid
+        return subprocess.Popen(
+            cmd,
+            cwd=str(self.project_dir),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            bufsize=1,
+            env=env,
+            creationflags=creationflags,
+            preexec_fn=preexec_fn,
+        )
+
+    def _run_manual_mode(self, run_script: Path) -> None:
+        assert self.out_path is not None
+        self.out_path.parent.mkdir(parents=True, exist_ok=True)
+        if self.out_path.exists():
+            try:
+                self.out_path.unlink()
+            except Exception:
+                pass
+
+        cmd = [
+            sys.executable,
+            str(run_script),
+            "--config",
+            str(self.config_path),
+            "--out",
+            str(self.out_path),
+        ]
+        cmd_text = " ".join(f'"{x}"' if " " in x else x for x in cmd)
+        self.started_cmd.emit(cmd_text)
+        self._emit_log(f"[LOG] 后端日志文件：{self.log_file}")
+        self._emit_log(f"[LOG] 本次结果将输出到：{self.out_path}")
+        self._write_backend_log(f"[CMD] {cmd_text}")
+
+        self.process = self._spawn_process(cmd)
+        assert self.process.stdout is not None
+        for line in self.process.stdout:
+            if self._stop_requested:
+                self._emit_log("[UI] 已请求停止后端装箱。")
+                return
+            msg = line.rstrip()
+            if msg:
+                self._emit_log(msg)
+
+        code = self.process.wait()
+        if self._stop_requested:
+            self._emit_log("[UI] 后端装箱已停止。")
+            return
+        if code != 0:
+            self.failed.emit(f"装箱算法运行失败，退出码：{code}")
+            return
+
+        time.sleep(0.3)
+        if self.out_path.exists() and _is_valid_packing_json(self.out_path):
+            self.finished_json.emit(str(self.out_path))
+            return
+
+        latest = find_latest_json(self.project_dir)
+        if latest and _is_valid_packing_json(latest):
+            self._emit_log(f"[提醒] 指定输出未生成，改用搜索到的最新结果：{latest}")
+            self.finished_json.emit(str(latest))
+            return
+
+        if self.out_path.exists():
+            self.failed.emit(
+                f"后端已结束，但指定输出不是有效装箱 JSON：{self.out_path}。"
+                "需要根节点包含 pallets 列表。"
+            )
+        else:
+            self.failed.emit(
+                f"后端已结束，但没有生成指定输出 JSON：{self.out_path}。"
+                "请查看底部日志中的后端错误信息。"
+            )
+
+    def _run_api_mode(self, run_script: Path) -> None:
+        cmd = [
+            sys.executable,
+            str(run_script),
+            "--config",
+            str(self.config_path),
+            "--api",
+        ]
+        cmd_text = " ".join(f'"{x}"' if " " in x else x for x in cmd)
+        self.started_cmd.emit(cmd_text)
+        self._emit_log(f"[LOG] 后端日志文件：{self.log_file}")
+        self._emit_log("[LOG] 接口模式：后端将每 200 秒拉取接口并自动装箱，直到点击停止。")
+        self._write_backend_log(f"[CMD] {cmd_text}")
+
+        self.process = self._spawn_process(cmd)
+        line_queue: queue.Queue = queue.Queue()
+
+        def _reader():
+            assert self.process is not None and self.process.stdout is not None
+            for line in self.process.stdout:
+                line_queue.put(line)
+
+        threading.Thread(target=_reader, daemon=True).start()
+
+        while True:
+            if self._stop_requested:
+                self._emit_log("[UI] 已请求停止接口装箱服务。")
+                return
+
+            try:
+                line = line_queue.get(timeout=0.5)
+            except queue.Empty:
+                if self.process.poll() is not None:
+                    break
+                continue
+
+            msg = line.rstrip()
+            if msg:
+                self._emit_log(msg)
+                self._maybe_emit_ui_result(msg)
+
+            if self.process.poll() is not None and line_queue.empty():
+                break
+
+        code = self.process.wait()
+        if self._stop_requested:
+            self._emit_log("[UI] 接口装箱服务已停止。")
+            return
+        if code != 0:
+            self.failed.emit(f"接口装箱服务异常退出，退出码：{code}")
+
     def run(self) -> None:
         try:
             run_script = self.project_dir / DEFAULT_RUN_SCRIPT_REL
@@ -239,90 +428,10 @@ class UiPackingWorker(QtCore.QThread):
                 self.failed.emit(f"找不到配置文件：{self.config_path}")
                 return
 
-            self.out_path.parent.mkdir(parents=True, exist_ok=True)
-            if self.out_path.exists():
-                try:
-                    self.out_path.unlink()
-                except Exception:
-                    pass
-
-            cmd = [
-                sys.executable,
-                str(run_script),
-                "--config",
-                str(self.config_path),
-                "--out",
-                str(self.out_path),
-            ]
-            cmd_text = " ".join(f'"{x}"' if " " in x else x for x in cmd)
-            self.started_cmd.emit(cmd_text)
-            self._emit_log(f"[LOG] 后端日志文件：{self.log_file}")
-            self._emit_log(f"[LOG] 本次结果将输出到：{self.out_path}")
-            self._write_backend_log(f"[CMD] {cmd_text}")
-
-            env = os.environ.copy()
-            env["PYTHONIOENCODING"] = "utf-8"
-            env["PYTHONUTF8"] = "1"
-
-            creationflags = 0
-            preexec_fn = None
-            if os.name == "nt":
-                creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
+            if self.api_mode:
+                self._run_api_mode(run_script)
             else:
-                preexec_fn = os.setsid
-
-            self.process = subprocess.Popen(
-                cmd,
-                cwd=str(self.project_dir),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                bufsize=1,
-                env=env,
-                creationflags=creationflags,
-                preexec_fn=preexec_fn,
-            )
-            assert self.process.stdout is not None
-            for line in self.process.stdout:
-                if self._stop_requested:
-                    self._emit_log("[UI] 已请求停止后端装箱。")
-                    return
-                msg = line.rstrip()
-                if msg:
-                    self._emit_log(msg)
-
-            code = self.process.wait()
-            if self._stop_requested:
-                self._emit_log("[UI] 后端装箱已停止。")
-                return
-            if code != 0:
-                self.failed.emit(f"装箱算法运行失败，退出码：{code}")
-                return
-
-            time.sleep(0.3)
-            if self.out_path.exists() and _is_valid_packing_json(self.out_path):
-                self.finished_json.emit(str(self.out_path))
-                return
-
-            # Fallback: useful if the backend changed its output behavior.
-            latest = find_latest_json(self.project_dir)
-            if latest and _is_valid_packing_json(latest):
-                self._emit_log(f"[提醒] 指定输出未生成，改用搜索到的最新结果：{latest}")
-                self.finished_json.emit(str(latest))
-                return
-
-            if self.out_path.exists():
-                self.failed.emit(
-                    f"后端已结束，但指定输出不是有效装箱 JSON：{self.out_path}。"
-                    "需要根节点包含 pallets 列表。"
-                )
-            else:
-                self.failed.emit(
-                    f"后端已结束，但没有生成指定输出 JSON：{self.out_path}。"
-                    "请查看底部日志中的后端错误信息。"
-                )
+                self._run_manual_mode(run_script)
         except Exception as exc:
             self.failed.emit(str(exc))
 
@@ -336,6 +445,9 @@ class IndustrialPackingWorkbenchClean(IndustrialPackingWorkbench):
         self.generated_config_path: Optional[Path] = None
         self.generated_out_path: Optional[Path] = None
         self.last_excel_mode: Optional[str] = None
+        #TODO 数据源按钮，True为用户自主选择excel数据，False为后端向接口请求数据
+        self.use_manual_excel_input = True
+        self._api_service_active = False
         super().__init__(project_dir)
         self.setWindowTitle("工业装箱工作台 V3 - 一键装箱 + 结果分析")
         self._write_log("[UI] V3模式：主流程为 选择Excel → 一键装箱；高级算法操作已合并到“算法设置”。")
@@ -361,6 +473,12 @@ class IndustrialPackingWorkbenchClean(IndustrialPackingWorkbench):
         self.status_pill = StatusPill("空闲")
         self.status_pill.setToolTip("当前运行状态：空闲 / 运行中 / 已完成 / 失败")
         layout.addWidget(self.status_pill)
+
+        # TODO: 关闭「输入数据」后，改为后端每 200s 向接口请求输入数据，不再由用户选择 Excel。
+        self.chk_manual_input = QtWidgets.QCheckBox("输入数据")
+        self.chk_manual_input.setChecked(True)
+        self.chk_manual_input.toggled.connect(self._on_manual_input_toggled)
+        layout.addWidget(self.chk_manual_input)
 
         self.btn_excel = QtWidgets.QPushButton("选择Excel")
         self.btn_excel.setObjectName("GhostButton")
@@ -419,6 +537,9 @@ class IndustrialPackingWorkbenchClean(IndustrialPackingWorkbench):
 
         return header
 
+    def _on_manual_input_toggled(self, checked: bool) -> None:
+        self.use_manual_excel_input = checked
+
     def show_algorithm_settings_info(self) -> None:
         """Show current backend path/config in a plain dialog for non-technical users."""
         project = getattr(self, "project_dir", None)
@@ -473,24 +594,39 @@ class IndustrialPackingWorkbenchClean(IndustrialPackingWorkbench):
             return None
 
     def start_excel_packing(self) -> None:
-        # 已经通过“选择Excel”选过文件时，直接运行；没有选过时再弹出选择框。
-        if self.generated_config_path is None or self.selected_excel_copy is None:
-            cfg = self.choose_excel_file()
-            if cfg is None:
-                return
+        if self.use_manual_excel_input:
+            # 已经通过“选择Excel”选过文件时，直接运行；没有选过时再弹出选择框。
+            if self.generated_config_path is None or self.selected_excel_copy is None:
+                cfg = self.choose_excel_file()
+                if cfg is None:
+                    return
+            else:
+                self.config_path = self.generated_config_path
+                self._write_log(f"[UI] 使用已选择 Excel：{self.selected_excel_original}")
         else:
-            self.config_path = self.generated_config_path
-            self._write_log(f"[UI] 使用已选择 Excel：{self.selected_excel_original}")
-        self.start_backend_packing()
+            cfg = _write_ui_config_api_only(self.project_dir, self.project_dir / DEFAULT_CONFIG_REL)
+            self.generated_config_path = cfg
+            self.config_path = cfg
+            self._write_log(f"[UI] 接口模式：已生成临时配置 {cfg}")
+            self._write_log("[UI] 将启动常驻接口服务（每 200 秒拉取一次），点击停止结束。")
+        self.start_backend_packing(api_mode=not self.use_manual_excel_input)
 
     # ------------------------------------------------------------------ backend
-    def start_backend_packing(self) -> None:
+    def start_backend_packing(self, api_mode: bool = False) -> None:
         if self.worker and self.worker.isRunning():
             QtWidgets.QMessageBox.information(self, "提示", "后端装箱正在运行。")
             return
         ensure_runtime_dirs(self.project_dir)
-        self.generated_out_path = _make_out_path(self.project_dir)
-        self.worker = UiPackingWorker(self.project_dir, self.config_path, self.generated_out_path, self)
+        self._api_service_active = api_mode
+        out_path = None if api_mode else _make_out_path(self.project_dir)
+        self.generated_out_path = out_path
+        self.worker = UiPackingWorker(
+            self.project_dir,
+            self.config_path,
+            out_path=out_path,
+            api_mode=api_mode,
+            parent=self,
+        )
         self.worker.log.connect(self._write_log)
         self.worker.started_cmd.connect(lambda cmd: self._write_log(f"[CMD] {cmd}"))
         self.worker.failed.connect(self.on_backend_failed)
@@ -509,15 +645,34 @@ class IndustrialPackingWorkbenchClean(IndustrialPackingWorkbench):
         self.btn_stop_backend.setEnabled(True)
         self.btn_stop_backend.setVisible(True)
         self.btn_load.setEnabled(False)
-        self.step_run.set_state("active", "后端装箱算法正在运行，完成后会自动显示结果")
+        if api_mode:
+            self.step_run.set_state("active", "接口服务运行中：每 200 秒拉取并装箱，完成后自动刷新结果")
+        else:
+            self.step_run.set_state("active", "后端装箱算法正在运行，完成后会自动显示结果")
         self._set_status("running")
         self._write_log("[UI] 开始后端装箱计算。")
         self._write_log(f"[UI] 使用配置：{self.config_path}")
-        self._write_log(f"[UI] 指定输出：{self.generated_out_path}")
+        if api_mode:
+            self._write_log("[UI] 接口模式：进程将持续运行，直到点击红色停止按钮。")
+        else:
+            self._write_log(f"[UI] 指定输出：{self.generated_out_path}")
         self.worker.start()
+
+    def stop_backend_packing(self) -> None:
+        if self.worker and self.worker.isRunning():
+            self.worker.stop()
+            self._write_log("[UI] 正在停止后端装箱进程...")
+            if self._api_service_active:
+                self.step_run.set_state("active", "正在停止接口服务...")
+                self._set_status("stopped")
+            else:
+                self.step_run.set_state("error", "已请求停止后端进程")
+                self._set_status("stopped")
 
     def on_worker_finished(self) -> None:
         super().on_worker_finished()
+        was_api = self._api_service_active
+        self._api_service_active = False
         if hasattr(self, "action_rerun_config"):
             self.action_rerun_config.setEnabled(True)
         if hasattr(self, "btn_algo_settings"):
@@ -529,6 +684,10 @@ class IndustrialPackingWorkbenchClean(IndustrialPackingWorkbench):
         if hasattr(self, "btn_stop_backend"):
             self.btn_stop_backend.setEnabled(False)
             self.btn_stop_backend.setVisible(True)
+        if was_api:
+            self.step_run.set_state("done", "接口服务已停止")
+            self._set_status("idle")
+            self._write_log("[UI] 接口装箱服务已结束。")
 
     def on_backend_finished_json(self, json_path: str) -> None:
         path = Path(json_path)
@@ -536,9 +695,17 @@ class IndustrialPackingWorkbenchClean(IndustrialPackingWorkbench):
         try:
             self.load_json_file(path)
             self.show_final_result()
-            self.step_run.set_state("done", "后端完成，已直接显示最终三维结果")
-            self.step_result.set_state("done", f"结果文件：{path.name}")
-            self._set_status("done")
+            if self._api_service_active:
+                self.step_run.set_state(
+                    "active",
+                    f"接口服务运行中：已显示本轮结果（{path.name}），等待下一次计算",
+                )
+                self.step_result.set_state("done", f"最新结果：{path.name}")
+                self._set_status("running")
+            else:
+                self.step_run.set_state("done", "后端完成，已直接显示最终三维结果")
+                self.step_result.set_state("done", f"结果文件：{path.name}")
+                self._set_status("done")
             self.workspace_tabs.setCurrentIndex(0)
         except Exception as exc:
             self.on_backend_failed(f"加载算法输出 JSON 失败：{exc}")
