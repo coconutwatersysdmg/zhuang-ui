@@ -25,10 +25,16 @@ from .excel_loader import _detect_small_box_threshold
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+# TODO: Mock 库存接口（Postman Mock Server），完整地址见 stock_api_url()
+#       POST {base}/adaptor/api/wcs/reqstockinfo
+#       默认 base: https://3c3758c8-755a-499e-b580-76afda706e5e.mock.pstmn.io
+#       也可通过环境变量 WCS_MOCK_URL 或 packing_config.yaml → data_source.api_base_url 覆盖
 DEFAULT_BASE_URL = os.getenv(
     "WCS_MOCK_URL",
     "https://3c3758c8-755a-499e-b580-76afda706e5e.mock.pstmn.io",
 )
+
+_STOCK_API_PATH = "/adaptor/api/wcs/reqstockinfo"
 
 _BMS_DF = pd.DataFrame()
 _PALLET_DIMS_MAP: Dict[str, Dict[str, float]] = {}
@@ -74,6 +80,65 @@ def configure_reference_excel(reference_file: Path) -> None:
         print(f"警告：读取参考 Excel 托盘尺寸失败: {exc}")
 
 
+def stock_api_url(base_url: Optional[str] = None) -> str:
+    """返回库存接口完整 URL（便于日志与调试）。"""
+    base = (base_url or DEFAULT_BASE_URL).rstrip("/")
+    return f"{base}{_STOCK_API_PATH}"
+
+
+def _print_stock_payload_summary(body: dict, source_label: str) -> None:
+    """把接口返回的库存数据摘要打印到终端（开发调试用）。"""
+    code = body.get("code")
+    msg = body.get("msg", "")
+    entries = body.get("data") or []
+    if not entries:
+        print(f"[接口数据] 来源: {source_label}")
+        print("[接口数据] data 为空，无库存条目。")
+        return
+
+    total_boxes = sum(int(e.get("target_num", 0) or 0) for e in entries)
+    orders = sorted({str(e.get("order_id", "")) for e in entries if e.get("order_id")})
+    print(f"[接口数据] 来源: {source_label}")
+    print(
+        f"[接口数据] 接口返回 {len(entries)} 条记录（每种箱型/订单组合一行），"
+        f"不是 {len(entries)} 个箱子"
+    )
+    print(f"[接口数据] code={code}, msg={msg}")
+    print(
+        f"[接口数据] 待装总箱数 = 所有 target_num 之和 = {total_boxes} "
+        f"（例如 target_num=110 表示该箱型要装 110 个），涉及订单数={len(orders)}"
+    )
+    if orders:
+        preview_orders = ", ".join(orders[:5])
+        if len(orders) > 5:
+            preview_orders += f" ... 等 {len(orders)} 个"
+        print(f"[接口数据] 订单号示例: {preview_orders}")
+
+    print("[接口数据] 箱型明细（box_type | case_type | target_num | order_id | L×W×H | weight）:")
+    show_max = 20
+    for idx, entry in enumerate(entries[:show_max]):
+        box_type = entry.get("box_type", "?")
+        case_type = entry.get("case_type", "?")
+        target_num = int(entry.get("target_num", 0) or 0)
+        order_id = entry.get("order_id", "?")
+        length = entry.get("length", "?")
+        width = entry.get("width", "?")
+        height = entry.get("height", "?")
+        weight = entry.get("weight", "?")
+        print(
+            f"  [{idx + 1:02d}] {box_type} | {case_type} | x{target_num} | "
+            f"{order_id} | {length}×{width}×{height} | {weight}"
+        )
+    if len(entries) > show_max:
+        print(f"  ... 其余 {len(entries) - show_max} 条省略，完整内容见 input/ 下保存的 JSON")
+
+    try:
+        preview_json = json.dumps(entries[:3], ensure_ascii=False, indent=2)
+        print(f"[接口数据] 原始 data 前 3 条 JSON 预览:\n{preview_json}")
+    except Exception:
+        pass
+
+
 def _make_msg_header() -> Dict[str, str]:
     return {
         "msgtime": time.strftime("%Y年%m月%d日%H:%M:%S"),
@@ -82,7 +147,8 @@ def _make_msg_header() -> Dict[str, str]:
 
 
 def _fetch_stock(base_url: str) -> List[Dict]:
-    url = f"{base_url.rstrip('/')}/adaptor/api/wcs/reqstockinfo"
+    url = stock_api_url(base_url)
+    print(f"[下载] 请求接口: POST {url}")
     resp = requests.post(url, json=_make_msg_header(), timeout=30, verify=False)
     resp.raise_for_status()
     body = resp.json()
@@ -90,6 +156,7 @@ def _fetch_stock(base_url: str) -> List[Dict]:
         raise RuntimeError(
             f"接口返回错误: code={body.get('code')}, msg={body.get('msg')}"
         )
+    _print_stock_payload_summary(body, source_label=url)
     return body.get("data", [])
 
 
@@ -190,7 +257,9 @@ def _boxes_from_stock_entries(stock_entries: List[Dict]) -> Optional[List[Dict]]
     case_types = {entry.get("case_type", "MH423C") for entry in stock_entries}
     pallet_dims_map = {ct: _get_pallet_dims(ct) for ct in case_types}
     all_boxes = _expand_stock_to_boxes(stock_entries, pallet_dims_map)
-    print(f"  共展开为 {len(all_boxes)} 个箱子记录。")
+    print(
+        f"  共展开为 {len(all_boxes)} 个个体箱子（由 {len(stock_entries)} 条接口记录按 target_num 展开）。"
+    )
     all_boxes = _apply_small_box_flags(all_boxes)
     return all_boxes or None
 
@@ -203,14 +272,17 @@ def fetch_and_save_stock_json(
     if base_url is None:
         base_url = DEFAULT_BASE_URL
     try:
-        url = f"{base_url.rstrip('/')}/adaptor/api/wcs/reqstockinfo"
+        url = stock_api_url(base_url)
+        print(f"[下载] 请求接口: POST {url}")
         resp = requests.post(url, json=_make_msg_header(), timeout=30, verify=False)
         resp.raise_for_status()
+        body = resp.json()
         input_dir.mkdir(parents=True, exist_ok=True)
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         filepath = input_dir / f"{ts}.json"
         filepath.write_text(resp.text, encoding="utf-8")
-        print(f"[下载] {ts} → 已保存 {filepath.name}")
+        print(f"[下载] {ts} → 已保存 {filepath.resolve()}")
+        _print_stock_payload_summary(body, source_label=str(filepath.name))
         return filepath
     except Exception as exc:
         print(f"[下载] 错误: {exc}")
@@ -231,6 +303,7 @@ def load_boxes_from_local_json(filepath: str) -> Optional[List[Dict]]:
         print(
             f"  从文件 {Path(filepath).name} 读取到 {len(stock_entries)} 种箱型。"
         )
+        _print_stock_payload_summary(body, source_label=Path(filepath).name)
         return _boxes_from_stock_entries(stock_entries)
     except Exception as exc:
         print(f"[加载] 读取文件 {filepath} 时发生异常: {exc}")

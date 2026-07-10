@@ -69,6 +69,7 @@ excel_data:
 # 数据源：manual=用户/配置 Excel；api=WCS 接口常驻拉取（每 download_interval 秒）
 data_source:
   mode: manual
+  # TODO: Postman Mock 库存接口 base，完整 URL = {api_base_url}/adaptor/api/wcs/reqstockinfo
   api_base_url: "https://3c3758c8-755a-499e-b580-76afda706e5e.mock.pstmn.io"
   download_interval: 200
   input_dir: input

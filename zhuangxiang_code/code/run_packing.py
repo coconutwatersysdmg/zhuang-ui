@@ -39,6 +39,7 @@ from src.data import (
     load_boxes,
     load_boxes_from_local_json,
 )
+from src.data.api_loader import stock_api_url
 from src.geometry import validate_center_of_mass
 from src.main import PackingWorkflow, build_json_output_plan
 from src.main.report_persister import JsonFileReportPersister
@@ -440,6 +441,7 @@ def _run_api_mode(safe_compare: bool = False, config_path=None):
     print("=" * 60)
     print("装箱服务（接口模式，持续运行）")
     print(f"  下载间隔: {interval} 秒")
+    print(f"  库存接口: POST {stock_api_url(base_url)}")
     print(f"  输入目录: {input_dir}")
     print(f"  输出目录: {OUTPUT_DIR}")
     print(f"  BMS 参考: {bms_ref}")

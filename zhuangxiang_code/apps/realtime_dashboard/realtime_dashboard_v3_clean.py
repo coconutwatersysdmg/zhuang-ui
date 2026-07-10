@@ -284,6 +284,7 @@ class UiPackingWorker(QtCore.QThread):
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
         env["PYTHONUTF8"] = "1"
+        env["PYTHONUNBUFFERED"] = "1"
         creationflags = 0
         preexec_fn = None
         if os.name == "nt":
@@ -446,7 +447,7 @@ class IndustrialPackingWorkbenchClean(IndustrialPackingWorkbench):
         self.generated_out_path: Optional[Path] = None
         self.last_excel_mode: Optional[str] = None
         #TODO 数据源按钮，True为用户自主选择excel数据，False为后端向接口请求数据
-        self.use_manual_excel_input = True
+        self.use_manual_excel_input = False
         self._api_service_active = False
         super().__init__(project_dir)
         self.setWindowTitle("工业装箱工作台 V3 - 一键装箱 + 结果分析")
@@ -539,6 +540,13 @@ class IndustrialPackingWorkbenchClean(IndustrialPackingWorkbench):
 
     def _on_manual_input_toggled(self, checked: bool) -> None:
         self.use_manual_excel_input = checked
+
+    def _write_log(self, text: str) -> None:
+        """界面日志与 VSCode 终端同步输出，便于开发调试。"""
+        msg = str(text)
+        if msg:
+            print(msg, flush=True)
+        super()._write_log(msg)
 
     def show_algorithm_settings_info(self) -> None:
         """Show current backend path/config in a plain dialog for non-technical users."""

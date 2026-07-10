@@ -1,0 +1,4 @@
+[LOG] 后端日志文件：E:\Homework\AA装箱\装箱和可视化\zhuang-ui\runtime\packing-realtime\logs\backend_20260710_230822.log
+[LOG] 接口模式：后端将每 200 秒拉取接口并自动装箱，直到点击停止。
+[CMD] E:\Homework\AA装箱\装箱和可视化\zhuang-ui\.venvs\packing-realtime\Scripts\python.exe E:\Homework\AA装箱\装箱和可视化\zhuang-ui\zhuangxiang_code\code\run_packing.py --config E:\Homework\AA装箱\装箱和可视化\zhuang-ui\runtime\packing-realtime\temp\ui_config_api_20260710_230822.yaml --api
+[UI] 已请求停止接口装箱服务。

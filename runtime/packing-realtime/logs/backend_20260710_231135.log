@@ -1,0 +1,289 @@
+[LOG] 后端日志文件：E:\Homework\AA装箱\装箱和可视化\zhuang-ui\runtime\packing-realtime\logs\backend_20260710_231135.log
+[LOG] 接口模式：后端将每 200 秒拉取接口并自动装箱，直到点击停止。
+[CMD] E:\Homework\AA装箱\装箱和可视化\zhuang-ui\.venvs\packing-realtime\Scripts\python.exe E:\Homework\AA装箱\装箱和可视化\zhuang-ui\zhuangxiang_code\code\run_packing.py --config E:\Homework\AA装箱\装箱和可视化\zhuang-ui\runtime\packing-realtime\temp\ui_config_api_20260710_231135.yaml --api
+[API] 已从参考 Excel 加载托盘尺寸映射：{'MH423C': {'length': 1440.0, 'width': 2240.0, 'height': 720.0}}
+load E:\Homework\AA装箱\装箱和可视化\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\zlib1.dll...
+load E:\Homework\AA装箱\装箱和可视化\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\abseil_dll.dll...
+load E:\Homework\AA装箱\装箱和可视化\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\utf8_validity.dll...
+load E:\Homework\AA装箱\装箱和可视化\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\re2.dll...
+load E:\Homework\AA装箱\装箱和可视化\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\libprotobuf.dll...
+load E:\Homework\AA装箱\装箱和可视化\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\highs.dll...
+load E:\Homework\AA装箱\装箱和可视化\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\ortools.dll...
+============================================================
+装箱服务（接口模式，持续运行）
+  下载间隔: 200 秒
+  库存接口: POST https://3c3758c8-755a-499e-b580-76afda706e5e.mock.pstmn.io/adaptor/api/wcs/reqstockinfo
+  输入目录: E:\Homework\AA装箱\装箱和可视化\zhuang-ui\zhuangxiang_code\code\input
+  输出目录: E:\Homework\AA装箱\装箱和可视化\zhuang-ui\zhuangxiang_code\output
+  BMS 参考: E:\Homework\AA装箱\装箱和可视化\zhuang-ui\zhuangxiang_code\data\668箱子数据集.xlsx
+  按 Ctrl+C 或由 UI 停止按钮结束进程
+============================================================
+[下载线程] 启动，每 200 秒请求一次接口...
+[下载] 请求接口: POST https://3c3758c8-755a-499e-b580-76afda706e5e.mock.pstmn.io/adaptor/api/wcs/reqstockinfo
+[处理线程] 启动，等待 input/ 目录中出现 JSON 文件...
+[下载] 20260710_231145 → 已保存 E:\Homework\AA装箱\装箱和可视化\zhuang-ui\zhuangxiang_code\code\input\20260710_231145.json
+[接口数据] 来源: 20260710_231145.json
+[接口数据] code=0, msg=ok, 箱型条目数=32
+[接口数据] 展开后总箱数(target_num 求和)=623, 涉及订单数=3
+[接口数据] 订单号示例: PAIN25450MN01S, PAIN25450MZ06S, PAIN25460MN01S
+[接口数据] 箱型明细（box_type | case_type | target_num | order_id | L×W×H | weight）:
+  [01] YZX512 | MH423C | x19 | PAIN25450MN01S | 350.0×800.0×240.0 | 1.728734
+  [02] DZX444 | MH423C | x10 | PAIN25450MN01S | 350.0×265.0×240.0 | 0.6818015
+  [03] YZX422 | MH423C | x12 | PAIN25450MN01S | 350.0×530.0×480.0 | 1.71966
+  [04] YBB165 | MH423C | x6 | PAIN25450MN01S | 350.0×540.0×240.0 | 1.693444
+  [05] YBB208 | MH423C | x75 | PAIN25450MN01S | 600.0×400.0×160.0 | 3.116736
+  [06] ZX428 | MH423C | x3 | PAIN25450MN01S | 350.0×530.0×120.0 | 0.78094
+  [07] ZX222 | MH423C | x32 | PAIN25450MN01S | 700.0×530.0×480.0 | 3.48325
+  [08] ZX444 | MH423C | x24 | PAIN25450MN01S | 350.0×265.0×240.0 | 1.4168015
+  [09] ZX224 | MH423C | x30 | PAIN25450MN01S | 700.0×530.0×240.0 | 1.99825
+  [10] DZX848 | MH423C | x14 | PAIN25450MN01S | 175.0×265.0×120.0 | 0.248546
+  [11] YZX224 | MH423C | x18 | PAIN25450MN01S | 700.0×530.0×240.0 | 2.03225
+  [12] YZX507 | MH423C | x23 | PAIN25450MN01S | 350.0×530.0×360.0 | 1.51142
+  [13] YZX424 | MH423C | x3 | PAIN25450MN01S | 350.0×530.0×240.0 | 3.84518
+  [14] YBB195 | MH423C | x46 | PAIN25450MN01S | 630.0×530.0×300.0 | 4.161332
+  [15] YBB197 | MH423C | x14 | PAIN25450MN01S | 860.0×265.0×240.0 | 1.3632405
+  [16] YZX522 | MH423C | x110 | PAIN25450MN01S | 700.0×530.0×300.0 | 4.74675
+  [17] YZX448 | MH423C | x60 | PAIN25450MN01S | 350.0×265.0×120.0 | 0.4551655
+  [18] YBB072 | MH423C | x43 | PAIN25450MN01S | 490.0×490.0×430.0 | 3.0876
+  [19] YBB141 | MH423C | x7 | PAIN25450MN01S | 340.0×540.0×260.0 | 1.4816
+  [20] YBB233 | MH423C | x4 | PAIN25450MN01S | 750.0×430.0×225.0 | 1.53008
+  ... 其余 12 条省略，完整内容见 input/ 下保存的 JSON
+[接口数据] 原始 data 前 3 条 JSON 预览:
+[
+  {
+    "length": 350.0,
+    "width": 800.0,
+    "height": 240.0,
+    "target_num": 19,
+    "weight": 1.728734,
+    "box_type": "YZX512",
+    "case_type": "MH423C",
+    "case_group": "0",
+    "product_code": "PROD001",
+    "order_id": "PAIN25450MN01S",
+    "priority": 1
+  },
+  {
+    "length": 350.0,
+    "width": 265.0,
+    "height": 240.0,
+    "target_num": 10,
+    "weight": 0.6818015,
+    "box_type": "DZX444",
+    "case_type": "MH423C",
+    "case_group": "0",
+    "product_code": "PROD002",
+    "order_id": "PAIN25450MN01S",
+    "priority": 1
+  },
+  {
+    "length": 350.0,
+    "width": 530.0,
+    "height": 480.0,
+    "target_num": 12,
+    "weight": 1.71966,
+    "box_type": "YZX422",
+    "case_type": "MH423C",
+    "case_group": "0",
+    "product_code": "PROD003",
+    "order_id": "PAIN25450MN01S",
+    "priority": 1
+  }
+]
+============================================================
+[处理] 开始处理: 20260710_231145.json
+============================================================
+  从文件 20260710_231145.json 读取到 32 种箱型。
+[接口数据] 来源: 20260710_231145.json
+[接口数据] code=0, msg=ok, 箱型条目数=32
+[接口数据] 展开后总箱数(target_num 求和)=623, 涉及订单数=3
+[接口数据] 订单号示例: PAIN25450MN01S, PAIN25450MZ06S, PAIN25460MN01S
+[接口数据] 箱型明细（box_type | case_type | target_num | order_id | L×W×H | weight）:
+  [01] YZX512 | MH423C | x19 | PAIN25450MN01S | 350.0×800.0×240.0 | 1.728734
+  [02] DZX444 | MH423C | x10 | PAIN25450MN01S | 350.0×265.0×240.0 | 0.6818015
+  [03] YZX422 | MH423C | x12 | PAIN25450MN01S | 350.0×530.0×480.0 | 1.71966
+  [04] YBB165 | MH423C | x6 | PAIN25450MN01S | 350.0×540.0×240.0 | 1.693444
+  [05] YBB208 | MH423C | x75 | PAIN25450MN01S | 600.0×400.0×160.0 | 3.116736
+  [06] ZX428 | MH423C | x3 | PAIN25450MN01S | 350.0×530.0×120.0 | 0.78094
+  [07] ZX222 | MH423C | x32 | PAIN25450MN01S | 700.0×530.0×480.0 | 3.48325
+  [08] ZX444 | MH423C | x24 | PAIN25450MN01S | 350.0×265.0×240.0 | 1.4168015
+  [09] ZX224 | MH423C | x30 | PAIN25450MN01S | 700.0×530.0×240.0 | 1.99825
+  [10] DZX848 | MH423C | x14 | PAIN25450MN01S | 175.0×265.0×120.0 | 0.248546
+  [11] YZX224 | MH423C | x18 | PAIN25450MN01S | 700.0×530.0×240.0 | 2.03225
+  [12] YZX507 | MH423C | x23 | PAIN25450MN01S | 350.0×530.0×360.0 | 1.51142
+  [13] YZX424 | MH423C | x3 | PAIN25450MN01S | 350.0×530.0×240.0 | 3.84518
+  [14] YBB195 | MH423C | x46 | PAIN25450MN01S | 630.0×530.0×300.0 | 4.161332
+  [15] YBB197 | MH423C | x14 | PAIN25450MN01S | 860.0×265.0×240.0 | 1.3632405
+  [16] YZX522 | MH423C | x110 | PAIN25450MN01S | 700.0×530.0×300.0 | 4.74675
+  [17] YZX448 | MH423C | x60 | PAIN25450MN01S | 350.0×265.0×120.0 | 0.4551655
+  [18] YBB072 | MH423C | x43 | PAIN25450MN01S | 490.0×490.0×430.0 | 3.0876
+  [19] YBB141 | MH423C | x7 | PAIN25450MN01S | 340.0×540.0×260.0 | 1.4816
+  [20] YBB233 | MH423C | x4 | PAIN25450MN01S | 750.0×430.0×225.0 | 1.53008
+  ... 其余 12 条省略，完整内容见 input/ 下保存的 JSON
+[接口数据] 原始 data 前 3 条 JSON 预览:
+[
+  {
+    "length": 350.0,
+    "width": 800.0,
+    "height": 240.0,
+    "target_num": 19,
+    "weight": 1.728734,
+    "box_type": "YZX512",
+    "case_type": "MH423C",
+    "case_group": "0",
+    "product_code": "PROD001",
+    "order_id": "PAIN25450MN01S",
+    "priority": 1
+  },
+  {
+    "length": 350.0,
+    "width": 265.0,
+    "height": 240.0,
+    "target_num": 10,
+    "weight": 0.6818015,
+    "box_type": "DZX444",
+    "case_type": "MH423C",
+    "case_group": "0",
+    "product_code": "PROD002",
+    "order_id": "PAIN25450MN01S",
+    "priority": 1
+  },
+  {
+    "length": 350.0,
+    "width": 530.0,
+    "height": 480.0,
+    "target_num": 12,
+    "weight": 1.71966,
+    "box_type": "YZX422",
+    "case_type": "MH423C",
+    "case_group": "0",
+    "product_code": "PROD003",
+    "order_id": "PAIN25450MN01S",
+    "priority": 1
+  }
+]
+  共展开为 623 个箱子记录。
+  小箱子阈值: 5565000.00 mm^3，小箱: 0，非小箱: 623
+数据预处理和箱子分组完成（按托盘类型+销售订单号）。
+----------------------------------------
+正在处理托盘类型：MH423C，销售订单号：PAIN25450MN01S
+  - 该分组不适合列式（多非满柱）→ 回退 beam + 配方优先。
+  - 配方优先[fast]：规划 7 实例，实装成功 7，失败回兜底 0；达标 7，直接采用配方方案（基线未跑，--safe 可审计对比）。
+  - 指数诊断：箱子 553 个，总指数 3794，目标 192，理论最多达标托盘 19 个，剩余指数 146。
+  - 几何诊断：典型整层堆叠单盘参考上限 192/192。
+  - 失败托盘互借诊断：跳过高耗时互借重打包。分层 near/mid/deep=0/2/18，默认仅执行低成本局部补洞和快速补齐。
+托盘类型 MH423C（销售订单号：PAIN25450MN01S）处理完成：总托盘 27，指数达标 7，未达标 20，平均缺口 69.50，最大缺口 187.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/2/18，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=6.71s，main_topup=2.02s，retry=0.00s，failed_pool=1.28s，repack=3.96s，total=12.71s。
+正在处理托盘类型：MH423C，销售订单号：PAIN25450MZ06S
+  - 该分组不适合列式（多非满柱）→ 回退 beam + 配方优先。
+  - 配方优先[fast]：规划 0 实例，实装成功 0，配方路径不可用 → 采用基线方案。
+  - 指数诊断：箱子 23 个，总指数 297，目标 192，理论最多达标托盘 1 个，剩余指数 105。
+  - 几何诊断：典型整层堆叠单盘参考上限 121/192。 当前目标可能受托盘高度/箱型组合限制。
+  - 几何不可达标记：典型整层上限 121 < 目标 192，救援优先压缩托盘数和填充率。
+  - 失败托盘互借诊断：跳过高耗时互借重打包。分层 near/mid/deep=0/0/3，默认仅执行低成本局部补洞和快速补齐。
+托盘类型 MH423C（销售订单号：PAIN25450MZ06S）处理完成：总托盘 3，指数达标 0，未达标 3，平均缺口 93.00，最大缺口 155.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/0/3，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=0.05s，main_topup=0.00s，retry=0.00s，failed_pool=0.00s，repack=0.00s，total=0.06s。
+正在处理托盘类型：MH423C，销售订单号：PAIN25460MN01S
+  - 该分组不适合列式（多非满柱）→ 回退 beam + 配方优先。
+  - 配方优先[fast]：规划 1 实例，实装成功 1，失败回兜底 0；达标 1，直接采用配方方案（基线未跑，--safe 可审计对比）。
+  - 指数诊断：箱子 47 个，总指数 398，目标 192，理论最多达标托盘 2 个，剩余指数 14。
+  - 几何诊断：典型整层堆叠单盘参考上限 176/192。 当前目标可能受托盘高度/箱型组合限制。
+  - 几何不可达标记：典型整层上限 176 < 目标 192，救援优先压缩托盘数和填充率。
+  - 失败托盘互借诊断：跳过高耗时互借重打包。分层 near/mid/deep=0/0/2，默认仅执行低成本局部补洞和快速补齐。
+托盘类型 MH423C（销售订单号：PAIN25460MN01S）处理完成：总托盘 3，指数达标 1，未达标 2，平均缺口 89.00，最大缺口 136.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/0/2，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=0.20s，main_topup=0.00s，retry=0.00s，failed_pool=0.00s，repack=0.00s，total=0.20s。
+========================================
+统计汇总：总托盘 33，指数达标 8，未达标 25，未知 0，平均缺口 73.88，最大缺口 187.00，失败托盘互借修复成功 0
+KPI汇总：near/mid/deep=0/2/23，pair尝试=0，pair改进=0，pair效率=0.00%
+耗时汇总：packing=6.95s，main_topup=2.02s，retry=0.00s，repack=3.96s，end_to_end=12.97s
+========================================
+========================================
+最终装箱方案已保存至：E:\Homework\AA装箱\装箱和可视化\zhuang-ui\zhuangxiang_code\output\packing_plan_20260710_231203.json
+托盘统计Excel已保存至：E:\Homework\AA装箱\装箱和可视化\zhuang-ui\zhuangxiang_code\output\packing_plan_summary_20260710_231203.xlsx
+========================================
+算法总运行时间：12.97 秒
+========================================
+[UI-RESULT] E:\Homework\AA装箱\装箱和可视化\zhuang-ui\zhuangxiang_code\output\packing_plan_20260710_231203.json
+[处理] 完成: 20260710_231145.json → processed/
+[下载] 请求接口: POST https://3c3758c8-755a-499e-b580-76afda706e5e.mock.pstmn.io/adaptor/api/wcs/reqstockinfo
+[下载] 20260710_231508 → 已保存 E:\Homework\AA装箱\装箱和可视化\zhuang-ui\zhuangxiang_code\code\input\20260710_231508.json
+[接口数据] 来源: 20260710_231508.json
+[接口数据] code=0, msg=ok, 箱型条目数=32
+[接口数据] 展开后总箱数(target_num 求和)=623, 涉及订单数=3
+[接口数据] 订单号示例: PAIN25450MN01S, PAIN25450MZ06S, PAIN25460MN01S
+[接口数据] 箱型明细（box_type | case_type | target_num | order_id | L×W×H | weight）:
+  [01] YZX512 | MH423C | x19 | PAIN25450MN01S | 350.0×800.0×240.0 | 1.728734
+  [02] DZX444 | MH423C | x10 | PAIN25450MN01S | 350.0×265.0×240.0 | 0.6818015
+  [03] YZX422 | MH423C | x12 | PAIN25450MN01S | 350.0×530.0×480.0 | 1.71966
+  [04] YBB165 | MH423C | x6 | PAIN25450MN01S | 350.0×540.0×240.0 | 1.693444
+  [05] YBB208 | MH423C | x75 | PAIN25450MN01S | 600.0×400.0×160.0 | 3.116736
+  [06] ZX428 | MH423C | x3 | PAIN25450MN01S | 350.0×530.0×120.0 | 0.78094
+  [07] ZX222 | MH423C | x32 | PAIN25450MN01S | 700.0×530.0×480.0 | 3.48325
+  [08] ZX444 | MH423C | x24 | PAIN25450MN01S | 350.0×265.0×240.0 | 1.4168015
+  [09] ZX224 | MH423C | x30 | PAIN25450MN01S | 700.0×530.0×240.0 | 1.99825
+  [10] DZX848 | MH423C | x14 | PAIN25450MN01S | 175.0×265.0×120.0 | 0.248546
+  [11] YZX224 | MH423C | x18 | PAIN25450MN01S | 700.0×530.0×240.0 | 2.03225
+  [12] YZX507 | MH423C | x23 | PAIN25450MN01S | 350.0×530.0×360.0 | 1.51142
+  [13] YZX424 | MH423C | x3 | PAIN25450MN01S | 350.0×530.0×240.0 | 3.84518
+  [14] YBB195 | MH423C | x46 | PAIN25450MN01S | 630.0×530.0×300.0 | 4.161332
+  [15] YBB197 | MH423C | x14 | PAIN25450MN01S | 860.0×265.0×240.0 | 1.3632405
+  [16] YZX522 | MH423C | x110 | PAIN25450MN01S | 700.0×530.0×300.0 | 4.74675
+  [17] YZX448 | MH423C | x60 | PAIN25450MN01S | 350.0×265.0×120.0 | 0.4551655
+  [18] YBB072 | MH423C | x43 | PAIN25450MN01S | 490.0×490.0×430.0 | 3.0876
+  [19] YBB141 | MH423C | x7 | PAIN25450MN01S | 340.0×540.0×260.0 | 1.4816
+  [20] YBB233 | MH423C | x4 | PAIN25450MN01S | 750.0×430.0×225.0 | 1.53008
+  ... 其余 12 条省略，完整内容见 input/ 下保存的 JSON
+[接口数据] 原始 data 前 3 条 JSON 预览:
+[
+  {
+    "length": 350.0,
+    "width": 800.0,
+    "height": 240.0,
+    "target_num": 19,
+    "weight": 1.728734,
+    "box_type": "YZX512",
+    "case_type": "MH423C",
+    "case_group": "0",
+    "product_code": "PROD001",
+    "order_id": "PAIN25450MN01S",
+    "priority": 1
+  },
+  {
+    "length": 350.0,
+    "width": 265.0,
+    "height": 240.0,
+    "target_num": 10,
+    "weight": 0.6818015,
+    "box_type": "DZX444",
+    "case_type": "MH423C",
+    "case_group": "0",
+    "product_code": "PROD002",
+    "order_id": "PAIN25450MN01S",
+    "priority": 1
+  },
+  {
+    "length": 350.0,
+    "width": 530.0,
+    "height": 480.0,
+    "target_num": 12,
+    "weight": 1.71966,
+    "box_type": "YZX422",
+    "case_type": "MH423C",
+    "case_group": "0",
+    "product_code": "PROD003",
+    "order_id": "PAIN25450MN01S",
+    "priority": 1
+  }
+]
+============================================================
+[处理] 开始处理: 20260710_231508.json
+============================================================
+  从文件 20260710_231508.json 读取到 32 种箱型。
+[接口数据] 来源: 20260710_231508.json
+[接口数据] code=0, msg=ok, 箱型条目数=32
+[接口数据] 展开后总箱数(target_num 求和)=623, 涉及订单数=3
+[接口数据] 订单号示例: PAIN25450MN01S, PAIN25450MZ06S, PAIN25460MN01S
+[UI] 接口装箱服务已停止。
