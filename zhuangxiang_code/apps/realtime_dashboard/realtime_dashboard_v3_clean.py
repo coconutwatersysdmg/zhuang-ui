@@ -28,7 +28,7 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import List, NamedTuple, Optional, Tuple
 
 # -----------------------------------------------------------------------------
 # Import v2 safely. v2 already contains the Qt plugin path fix and UI theme.
@@ -65,6 +65,7 @@ try:
         runtime_dir_from_project,
         log_dir_from_project,
         find_latest_json,
+        workspace_dir_from_project,
     )
 except Exception as exc:  # pragma: no cover
     raise RuntimeError(
@@ -198,13 +199,79 @@ def _write_ui_config_api_only(project_dir: Path, base_config_path: Path) -> Path
 
 
 _UI_RESULT_RE = re.compile(r"\[UI-RESULT\]\s*(.+)$")
+_RESULT_TS_RE = re.compile(r"(\d{8})_(\d{6})")
+_HISTORY_LIMIT = 50
+_HISTORY_CURRENT_TOKEN = "__current__"
 
 
-def _make_out_path(project_dir: Path, prefix: str = "ui_packing_plan") -> Path:
-    out_dir = _runtime_exports_dir(project_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return out_dir / f"{prefix}_{stamp}.json"
+class ResultHistoryEntry(NamedTuple):
+    path: Path
+    mtime: float
+    source: str
+    label: str
+
+
+def _result_search_roots(project_dir: Path) -> List[Path]:
+    project_dir = Path(project_dir).resolve()
+    workspace_dir = workspace_dir_from_project(project_dir)
+    roots = [
+        project_dir / "output",
+        project_dir / "outputs",
+        workspace_dir / "runtime" / RUNTIME_NAME / "exports",
+    ]
+    return [p for p in roots if p.exists()]
+
+
+def _guess_result_source(path: Path, project_dir: Path) -> str:
+    text = str(path.resolve()).replace("\\", "/").lower()
+    name = path.name.lower()
+    if "ui_packing_plan" in name or "/exports/" in text:
+        return "Excel"
+    if "/output/" in text or name.startswith("packing_plan_"):
+        return "输出"
+    return "手动"
+
+
+def _format_result_timestamp(path: Path) -> str:
+    match = _RESULT_TS_RE.search(path.stem)
+    if not match:
+        return datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+    d, t = match.groups()
+    return f"{d[:4]}-{d[4:6]}-{d[6:8]} {t[:2]}:{t[2:4]}:{t[4:6]}"
+
+
+def _read_result_summary(path: Path) -> dict:
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        overall = (data.get("summary") or {}).get("overall") or {}
+        return {
+            "total": overall.get("total_pallets"),
+            "success": overall.get("success_pallets"),
+            "failed": overall.get("failed_pallets"),
+            "runtime": data.get("total_runtime_seconds"),
+        }
+    except Exception:
+        return {}
+
+
+def _build_result_history_label(path: Path, source: str) -> str:
+    ts = _format_result_timestamp(path)
+    summary = _read_result_summary(path)
+    total = summary.get("total")
+    success = summary.get("success")
+    failed = summary.get("failed")
+    runtime = summary.get("runtime")
+    if total is not None and success is not None and failed is not None:
+        stat = f"{total}盘·达标{success}·未达标{failed}"
+    else:
+        stat = path.name
+    if runtime is not None:
+        try:
+            stat += f"·{float(runtime):.0f}s"
+        except (TypeError, ValueError):
+            pass
+    return f"{ts} [{source}] {stat}"
 
 
 def _is_valid_packing_json(path: Path) -> bool:
@@ -214,6 +281,42 @@ def _is_valid_packing_json(path: Path) -> bool:
         return isinstance(data, dict) and isinstance(data.get("pallets"), list)
     except Exception:
         return False
+
+
+def list_result_json_files(project_dir: Path, limit: int = _HISTORY_LIMIT) -> List[ResultHistoryEntry]:
+    project_dir = Path(project_dir).resolve()
+    seen = set()
+    entries: List[ResultHistoryEntry] = []
+    patterns = ["packing_plan_*.json", "ui_packing_plan_*.json"]
+    for root in _result_search_roots(project_dir):
+        for pattern in patterns:
+            for path in root.glob(pattern):
+                if not path.is_file():
+                    continue
+                key = str(path.resolve())
+                if key in seen:
+                    continue
+                if not _is_valid_packing_json(path):
+                    continue
+                seen.add(key)
+                source = _guess_result_source(path, project_dir)
+                entries.append(
+                    ResultHistoryEntry(
+                        path=path.resolve(),
+                        mtime=path.stat().st_mtime,
+                        source=source,
+                        label=_build_result_history_label(path, source),
+                    )
+                )
+    entries.sort(key=lambda e: e.mtime, reverse=True)
+    return entries[:limit]
+
+
+def _make_out_path(project_dir: Path, prefix: str = "ui_packing_plan") -> Path:
+    out_dir = _runtime_exports_dir(project_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return out_dir / f"{prefix}_{stamp}.json"
 
 
 class UiPackingWorker(QtCore.QThread):
@@ -449,9 +552,13 @@ class IndustrialPackingWorkbenchClean(IndustrialPackingWorkbench):
         #TODO 数据源按钮，True为用户自主选择excel数据，False为后端向接口请求数据
         self.use_manual_excel_input = False
         self._api_service_active = False
+        self._history_refreshing = False
+        self._current_result_path: Optional[Path] = None
+        self._live_result_path: Optional[Path] = None
         super().__init__(project_dir)
         self.setWindowTitle("工业装箱工作台 V3 - 一键装箱 + 结果分析")
         self._write_log("[UI] V3模式：主流程为 选择Excel → 一键装箱；高级算法操作已合并到“算法设置”。")
+        self.refresh_result_history()
 
     # ------------------------------------------------------------------ header
     def _build_header(self) -> QtWidgets.QWidget:
@@ -530,11 +637,18 @@ class IndustrialPackingWorkbenchClean(IndustrialPackingWorkbench):
         self.btn_load_result.clicked.connect(self.load_json_dialog)
         layout.addWidget(self.btn_load_result)
 
+        self.cmb_result_history = QtWidgets.QComboBox()
+        self.cmb_result_history.setObjectName("GhostCombo")
+        self.cmb_result_history.setMinimumWidth(300)
+        self.cmb_result_history.setMaximumWidth(420)
+        self.cmb_result_history.setToolTip("「当前」= 最新一次装箱结果；其余为历史记录（最近 50 条）")
+        self.cmb_result_history.currentIndexChanged.connect(self.on_result_history_changed)
+        layout.addWidget(self.cmb_result_history)
+
+        # 兼容父类/旧逻辑；实际入口已合并到历史结果下拉框。
         self.btn_show_latest = QtWidgets.QPushButton("打开最新结果")
-        self.btn_show_latest.setObjectName("GhostButton")
-        self.btn_show_latest.setToolTip("读取输出目录中最新的装箱结果，并直接显示三维结果。")
         self.btn_show_latest.clicked.connect(self.open_latest_result)
-        layout.addWidget(self.btn_show_latest)
+        self.btn_show_latest.setVisible(False)
 
         return header
 
@@ -547,6 +661,130 @@ class IndustrialPackingWorkbenchClean(IndustrialPackingWorkbench):
         if msg:
             print(msg, flush=True)
         super()._write_log(msg)
+
+    def _current_history_label(self) -> str:
+        if self._live_result_path and self._live_result_path.exists():
+            detail = _build_result_history_label(
+                self._live_result_path,
+                _guess_result_source(self._live_result_path, self.project_dir),
+            )
+            return f"当前 · {detail}"
+        return "当前（尚无结果）"
+
+    def refresh_result_history(
+        self,
+        select_path: Optional[Path] = None,
+        select_latest: bool = False,
+        select_current: bool = False,
+    ) -> None:
+        if not hasattr(self, "cmb_result_history"):
+            return
+        self._history_refreshing = True
+        try:
+            entries = list_result_json_files(self.project_dir)
+            combo = self.cmb_result_history
+            combo.blockSignals(True)
+            combo.clear()
+
+            combo.addItem(self._current_history_label(), _HISTORY_CURRENT_TOKEN)
+            live_resolved = (
+                self._live_result_path.resolve()
+                if self._live_result_path and self._live_result_path.exists()
+                else None
+            )
+
+            if not entries and live_resolved is None:
+                combo.setCurrentIndex(0)
+                combo.setEnabled(True)
+                combo.blockSignals(False)
+                return
+
+            combo.setEnabled(True)
+            select_idx = 0
+            target = Path(select_path).resolve() if select_path else None
+
+            for entry in entries:
+                if live_resolved is not None and entry.path == live_resolved:
+                    continue
+                combo.addItem(entry.label, str(entry.path))
+
+            if select_current or select_latest or (
+                target is not None and live_resolved is not None and target == live_resolved
+            ):
+                select_idx = 0
+            elif target is not None:
+                for idx in range(combo.count()):
+                    data = combo.itemData(idx)
+                    if data and data != _HISTORY_CURRENT_TOKEN and Path(str(data)) == target:
+                        select_idx = idx
+                        break
+
+            combo.setCurrentIndex(select_idx)
+            combo.blockSignals(False)
+        finally:
+            self._history_refreshing = False
+
+    def on_result_history_changed(self, index: int) -> None:
+        if self._history_refreshing or index < 0:
+            return
+        if not hasattr(self, "cmb_result_history"):
+            return
+        raw = self.cmb_result_history.itemData(index)
+        if raw == _HISTORY_CURRENT_TOKEN:
+            if not self._live_result_path or not self._live_result_path.exists():
+                return
+            path = self._live_result_path.resolve()
+        elif raw:
+            path = Path(str(raw)).resolve()
+        else:
+            return
+
+        if self._current_result_path and path == self._current_result_path.resolve():
+            return
+        try:
+            label = "当前结果" if raw == _HISTORY_CURRENT_TOKEN else "历史结果"
+            self._write_log(f"[UI] 切换{label}：{path}")
+            self.load_json_file(path)
+            self.show_final_result()
+            self._current_result_path = path
+            if hasattr(self, "file_info"):
+                self.file_info.setText(f"当前结果：{path.name}")
+            if hasattr(self, "step_result"):
+                self.step_result.set_state("done", f"{label}：{path.name}")
+            self.workspace_tabs.setCurrentIndex(0)
+        except Exception as exc:
+            self.on_backend_failed(f"加载结果失败：{exc}")
+
+    def open_latest_result(self) -> None:
+        latest = find_latest_json(self.project_dir)
+        if latest is None:
+            QtWidgets.QMessageBox.warning(self, "没有找到结果", "没有找到历史装箱 JSON 输出。")
+            return
+        self.refresh_result_history(select_path=latest, select_current=False)
+        self.on_result_history_changed(self.cmb_result_history.currentIndex())
+
+    def load_json_dialog(self) -> None:
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self,
+            "选择装箱算法 JSON",
+            str(self.project_dir / "output"),
+            "JSON Files (*.json);;All Files (*.*)",
+        )
+        if not path:
+            return
+        try:
+            self.load_json_file(Path(path))
+            self.show_final_result()
+            self._current_result_path = Path(path).resolve()
+            self._live_result_path = self._current_result_path
+            self.refresh_result_history(select_current=True)
+            if hasattr(self, "file_info"):
+                self.file_info.setText(f"当前结果：{Path(path).name}")
+            if hasattr(self, "step_result"):
+                self.step_result.set_state("done", f"手动加载：{Path(path).name}")
+            self.workspace_tabs.setCurrentIndex(0)
+        except Exception as exc:
+            self.on_backend_failed(f"加载 JSON 失败：{exc}")
 
     def show_algorithm_settings_info(self) -> None:
         """Show current backend path/config in a plain dialog for non-technical users."""
@@ -703,6 +941,11 @@ class IndustrialPackingWorkbenchClean(IndustrialPackingWorkbench):
         try:
             self.load_json_file(path)
             self.show_final_result()
+            self._current_result_path = path.resolve()
+            self._live_result_path = self._current_result_path
+            self.refresh_result_history(select_current=True)
+            if hasattr(self, "file_info"):
+                self.file_info.setText(f"当前结果：{path.name}")
             if self._api_service_active:
                 self.step_run.set_state(
                     "active",
