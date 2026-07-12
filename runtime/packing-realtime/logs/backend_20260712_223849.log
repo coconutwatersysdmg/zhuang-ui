@@ -1,6 +1,6 @@
-[LOG] 后端日志文件：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\runtime\packing-realtime\logs\backend_20260712_223006.log
+[LOG] 后端日志文件：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\runtime\packing-realtime\logs\backend_20260712_223849.log
 [LOG] 接口模式：后端将每 200 秒拉取接口并自动装箱，直到点击停止。
-[CMD] D:\ProgramData\anaconda3\python.exe E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\code\run_wcs_service.py --config E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\runtime\packing-realtime\temp\ui_config_api_20260712_223006.yaml
+[CMD] D:\ProgramData\anaconda3\python.exe E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\code\run_wcs_service.py --config E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\runtime\packing-realtime\temp\ui_config_api_20260712_223849.yaml
 [WCS] 已加载 BMS 参考表：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\data\selected_5000_boxes_9_1_concentrated_3orders.xlsx
 ============================================================
 WCS 接口装箱服务（常驻模式）
@@ -9,13 +9,13 @@ WCS 接口装箱服务（常驻模式）
   库存目录：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\code\input
   输出目录：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\output
   BMS 参考：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\data\selected_5000_boxes_9_1_concentrated_3orders.xlsx
-  约束配置：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\runtime\packing-realtime\temp\ui_config_api_20260712_223006.yaml
+  约束配置：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\runtime\packing-realtime\temp\ui_config_api_20260712_223849.yaml
   按 Ctrl+C 或由 UI 停止按钮结束进程
 ============================================================
 [WCS] 已加载 BMS 参考表：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\data\selected_5000_boxes_9_1_concentrated_3orders.xlsx
 ============================================================
-[WCS] 第 20260712_223016 轮：拉取接口 1 …
-[WCS] 接口 1 原始响应已保存：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\code\input\20260712_223016.json
+[WCS] 第 20260712_223858 轮：拉取接口 1 …
+[WCS] 接口 1 原始响应已保存：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\code\input\20260712_223858.json
 [WCS] 库存品类数：32
 [WCS] 展开为 623 个箱子。
 数据预处理和箱子分组完成（按托盘类型+销售订单号）。
@@ -28,7 +28,7 @@ WCS 接口装箱服务（常驻模式）
   - 失败托盘互借诊断：未合并（aborted_no_improvement_possible）。
 托盘类型 MH423C（销售订单号：PAIN25450MN01S）处理完成：总托盘 24，指数达标 7，未达标 17，平均缺口 47.88，最大缺口 168.00，失败托盘互借修复成功 0。
   - KPI：near/mid/deep=0/1/16，救回率=0.00%，pair效率=0.00%。
-  - 耗时拆解：packing=6.25s，main_topup=0.19s，retry=0.00s，failed_pool=1.17s，repack=31.11s，total=37.58s。
+  - 耗时拆解：packing=6.47s，main_topup=0.21s，retry=0.00s，failed_pool=1.17s，repack=30.30s，total=37.01s。
 正在处理托盘类型：MH423C，销售订单号：PAIN25450MZ06S
   - 该分组不适合列式（多非满柱）→ 回退 beam + 配方优先。
   - 配方优先[fast]：规划 0 实例，实装成功 0，配方路径不可用 → 采用基线方案。
@@ -38,7 +38,7 @@ WCS 接口装箱服务（常驻模式）
   - 失败托盘互借诊断：未合并（aborted_no_improvement_possible）。
 托盘类型 MH423C（销售订单号：PAIN25450MZ06S）处理完成：总托盘 3，指数达标 0，未达标 3，平均缺口 93.00，最大缺口 164.00，失败托盘互借修复成功 0。
   - KPI：near/mid/deep=0/0/3，救回率=0.00%，pair效率=0.00%。
-  - 耗时拆解：packing=0.06s，main_topup=0.00s，retry=0.00s，failed_pool=0.00s，repack=0.14s，total=0.19s。
+  - 耗时拆解：packing=0.06s，main_topup=0.00s，retry=0.00s，failed_pool=0.00s，repack=0.14s，total=0.20s。
 正在处理托盘类型：MH423C，销售订单号：PAIN25460MN01S
   - 该分组不适合列式（多非满柱）→ 回退 beam + 配方优先。
   - 配方优先[fast]：规划 1 实例，实装成功 1，失败回兜底 0；达标 1，直接采用配方方案（基线未跑，--safe 可审计对比）。
@@ -48,16 +48,15 @@ WCS 接口装箱服务（常驻模式）
   - 失败托盘互借诊断：未合并（aborted_no_improvement_possible）。
 托盘类型 MH423C（销售订单号：PAIN25460MN01S）处理完成：总托盘 3，指数达标 1，未达标 2，平均缺口 89.00，最大缺口 150.00，失败托盘互借修复成功 0。
   - KPI：near/mid/deep=0/0/2，救回率=0.00%，pair效率=0.00%。
-  - 耗时拆解：packing=0.18s，main_topup=0.00s，retry=0.00s，failed_pool=0.00s，repack=0.22s，total=0.40s。
+  - 耗时拆解：packing=0.20s，main_topup=0.00s，retry=0.00s，failed_pool=0.00s，repack=0.23s，total=0.43s。
 ========================================
 统计汇总：总托盘 30，指数达标 8，未达标 22，未知 0，平均缺口 57.77，最大缺口 168.00，失败托盘互借修复成功 0
 KPI汇总：near/mid/deep=0/1/21，pair尝试=0，pair改进=0，pair效率=0.00%
-耗时汇总：packing=6.49s，main_topup=0.19s，retry=0.00s，repack=31.47s，end_to_end=38.18s
+耗时汇总：packing=6.73s，main_topup=0.21s，retry=0.00s，repack=30.67s，end_to_end=37.64s
 ========================================
-[WCS] 装箱报告已保存：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\output\packing_plan_20260712_223016.json
-[WCS] 接口 2 发送体已保存：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\output\wcs_plan_20260712_223016.json（30 个 case）
+[WCS] 装箱报告已保存：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\output\packing_plan_20260712_223858.json
+[WCS] 接口 2 发送体已保存：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\output\wcs_plan_20260712_223858.json（30 个 case）
 [WCS] 接口 2 推送成功：code=0, msg=ok
-[WCS] box_unique_id 映射已保存：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\output\wcs_plan_map_20260712_223016.json
-[UI-RESULT] E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\output\packing_plan_20260712_223016.json
+[WCS] box_unique_id 映射已保存：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\output\wcs_plan_map_20260712_223858.json
+[UI-RESULT] E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\output\packing_plan_20260712_223858.json
 [WCS] 等待 200 秒后下一轮 …
-[UI] 接口装箱服务已停止。

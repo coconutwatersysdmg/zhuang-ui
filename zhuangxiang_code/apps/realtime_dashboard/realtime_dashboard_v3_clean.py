@@ -554,8 +554,9 @@ class IndustrialPackingWorkbenchClean(IndustrialPackingWorkbench):
         self.generated_config_path: Optional[Path] = None
         self.generated_out_path: Optional[Path] = None
         self.last_excel_mode: Optional[str] = None
-        # 数据源：use_api_mode=True → 接口模式；False → 本地 Excel
-        self.use_api_mode = False
+        # TODO(接口模式默认勾选): 改下面 use_api_mode 与 _build_header 里 chk_api_mode.setChecked 保持一致
+        # True=启动默认接口模式；False=启动默认本地 Excel
+        self.use_api_mode = True
         self._api_service_active = False
         self._history_refreshing = False
         self._current_result_path: Optional[Path] = None
@@ -588,7 +589,8 @@ class IndustrialPackingWorkbenchClean(IndustrialPackingWorkbench):
         layout.addWidget(self.status_pill)
 
         self.chk_api_mode = QtWidgets.QCheckBox("接口模式")
-        self.chk_api_mode.setChecked(False)
+        # TODO(接口模式默认勾选): 与 __init__ 里 use_api_mode 保持一致
+        self.chk_api_mode.setChecked(True)
         self.chk_api_mode.setToolTip("勾选：从 WCS 接口拉库存并装箱（常驻服务）\n不勾选：使用本地 Excel 文件")
         self.chk_api_mode.toggled.connect(self._on_api_mode_toggled)
         layout.addWidget(self.chk_api_mode)
