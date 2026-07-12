@@ -65,3 +65,16 @@ excel_data:
   source_file: selected_5000_boxes_9_1_concentrated_3orders.xlsx
   result_sheet: 最终挑选结果
   bms_sheet: 包装物料主数据(BMS)
+
+# TODO 实际地址，到现场修改。目前使用Postman Mock地址。
+# 公司给的完整地址示例：
+#   http://192.168.1.100:8080/adaptor/api/wcs/reqstockinfo
+#   http://192.168.1.100:8080/adaptor/api/wcs/sendpalletplanresult
+# 这里只填「协议 + IP/域名 + 端口」，即去掉路径后的根地址，例如：
+#   api_base_url: http://192.168.1.100:8080
+data_source:
+  mode: api
+  api_base_url: https://3c3758c8-755a-499e-b580-76afda706e5e.mock.pstmn.io
+  download_interval: 200
+  input_dir: input
+  bms_reference_file: selected_5000_boxes_9_1_concentrated_3orders.xlsx

@@ -72,6 +72,8 @@ except Exception as exc:  # pragma: no cover
         "Cannot import realtime_dashboard_v2.py. Keep this file in apps/realtime_dashboard."
     ) from exc
 
+DEFAULT_WCS_RUN_SCRIPT_REL = Path(r"code\run_wcs_service.py")
+
 
 REQUIRED_INCREMENTAL_SHEETS = {"最终挑选结果", "新增箱", "包装物料主数据(BMS)"}
 BMS_SHEET = "包装物料主数据(BMS)"
@@ -173,6 +175,7 @@ def _write_ui_config(project_dir: Path, base_config_path: Path, excel_copy_path:
 
 
 def _write_ui_config_api_only(project_dir: Path, base_config_path: Path) -> Path:
+    # TODO(接口地址): 优先改 code/config/packing_config.yaml → data_source.api_base_url
     config = _load_yaml(base_config_path)
     base_excel = (config.get("excel_data") or {}).get("source_file")
     bms_ref = (config.get("data_source") or {}).get("bms_reference_file") or base_excel or "668箱子数据集.xlsx"
@@ -472,12 +475,15 @@ class UiPackingWorker(QtCore.QThread):
             )
 
     def _run_api_mode(self, run_script: Path) -> None:
+        wcs_script = self.project_dir / DEFAULT_WCS_RUN_SCRIPT_REL
+        if not wcs_script.exists():
+            self.failed.emit(f"找不到 WCS 接口服务入口：{wcs_script}")
+            return
         cmd = [
             sys.executable,
-            str(run_script),
+            str(wcs_script),
             "--config",
             str(self.config_path),
-            "--api",
         ]
         cmd_text = " ".join(f'"{x}"' if " " in x else x for x in cmd)
         self.started_cmd.emit(cmd_text)
