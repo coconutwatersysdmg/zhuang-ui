@@ -2,11 +2,11 @@
 # 运行模式：normal = 普通单次装箱(读 excel_data)；
 #           incremental = 增量装箱(读 incremental.source_file，三表 Excel：
 #           最终挑选结果/新增箱/BMS，先装初始单、再把未达标盘的箱+新增箱重排合并)。
-run_mode: incremental
+run_mode: normal
 
 # 增量模式数据文件（相对 data/，需含"新增箱"表）。仅 run_mode=incremental 时生效。
 incremental:
-  source_file: selected_8000_boxes_9_1_concentrated_3orders.xlsx
+  source_file: selected_6000_full_regular_10_0_chain.xlsx
 
 pallets:
   MH423C:
@@ -65,12 +65,3 @@ excel_data:
   source_file: selected_5000_boxes_9_1_concentrated_3orders.xlsx
   result_sheet: 最终挑选结果
   bms_sheet: 包装物料主数据(BMS)
-
-# 数据源：manual=用户/配置 Excel；api=WCS 接口常驻拉取（每 download_interval 秒）
-data_source:
-  mode: manual
-  # TODO: Postman Mock 库存接口 base，完整 URL = {api_base_url}/adaptor/api/wcs/reqstockinfo
-  api_base_url: "https://3c3758c8-755a-499e-b580-76afda706e5e.mock.pstmn.io"
-  download_interval: 200
-  input_dir: input
-  bms_reference_file: 668箱子数据集.xlsx

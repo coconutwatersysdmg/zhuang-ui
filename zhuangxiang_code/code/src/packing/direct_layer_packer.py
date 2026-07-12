@@ -230,7 +230,8 @@ def build_direct_layer_packing_solution(
                 ):
                     return []
                 if not passes_box_gap_constraint(
-                    point, dims, raw_dims, placed, max_gap=max_gap
+                    point, dims, raw_dims, placed, max_gap=max_gap,
+                    pallet_dims=pallet_dims,
                 ):
                     return []
                 if (

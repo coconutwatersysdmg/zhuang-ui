@@ -63,6 +63,7 @@ def sanitize_packed_items(
                 get_raw_dims(item),
                 [other for other in kept_items if other.get('id') != item.get('id')],
                 max_gap=max_gap,
+                pallet_dims=pallet_dims,
             )
         ]
         if gap_violators:

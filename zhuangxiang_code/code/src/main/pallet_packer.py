@@ -1575,8 +1575,22 @@ class PalletPacker:
                     str(item.get('id')),
                 ),
             )
+            # 同型箱剪枝：尺寸/重量/指数/小箱标记全同的箱子，本轮可行性
+            # 判定完全同构——一个试放失败即全型失败，直接跳过（每轮扫描
+            # 从 O(剩余箱数) 降到 O(箱型数)，判定语义不变）。
+            failed_types = set()
             for item in ordered:
                 if item.get('id') in placed_ids:
+                    continue
+                type_key = (
+                    round(float(item.get('length', 0) or 0), 1),
+                    round(float(item.get('width', 0) or 0), 1),
+                    round(float(item.get('height', 0) or 0), 1),
+                    round(float(item.get('weight', 0) or 0), 3),
+                    float(item.get('min_pack_multiple', 0) or 0),
+                    bool(item.get('is_small_box')),
+                )
+                if type_key in failed_types:
                     continue
                 candidates = probe._generate_feasible_candidates(
                     item, placed, rng
@@ -1640,6 +1654,7 @@ class PalletPacker:
                     break
                 if accepted is not None:
                     break
+                failed_types.add(type_key)
 
             if accepted is None:
                 break

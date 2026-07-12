@@ -1,0 +1,67 @@
+#运行命令：python code/run_packing.py --config code/config/packing_config.yaml
+# 运行模式：normal = 普通单次装箱(读 excel_data)；
+#           incremental = 增量装箱(读 incremental.source_file，三表 Excel：
+#           最终挑选结果/新增箱/BMS，先装初始单、再把未达标盘的箱+新增箱重排合并)。
+run_mode: normal
+
+# 增量模式数据文件（相对 data/，需含"新增箱"表）。仅 run_mode=incremental 时生效。
+incremental:
+  source_file: selected_5000_full_regular_10_0_chain.xlsx
+
+pallets:
+  MH423C:
+    length: 1440.0
+    width: 2240.0
+    height: 720.0
+    target_index: 192
+
+constraints:
+  # 主装箱算法：'gcp' = 全局列式装箱 + 柱级组合优化（默认，规则数据达标率最高，
+  # 复杂/不规则分组自动回退 beam）；'beam' = 旧 beam + 配方优先 + 救援链。
+  main_packer: gcp
+  max_box_gap_mm: 6.0
+  support_ratio_threshold: 0.8
+  center_of_mass_tolerance: 0.3333333333333333
+  suction_reachability_enabled: true
+  small_box_below_enabled: true
+  same_size_heavier_below_enabled: true
+  height_multiple_layering_enabled: true
+  suction_cup_length: 600.0
+  suction_cup_width: 800.0
+  suction_xy_clearance: 0.0
+  suction_z_clearance: 0.0
+  suction_allow_rotation_90: true
+  # baseline 是否允许箱子 90° 旋转（朝向规整，带几何门槛：仅对"旋转能让单类
+  # 整层从不达标变达标"的箱型换向，救旋转敏感订单且不打乱已紧凑的难组布局）。
+  # 仅作用于 baseline 路径；GCP 有独立朝向处理(_fp_orient/CP-SAT)。默认 true。
+  allow_box_rotation_90: true
+tolerances:
+  xy_tolerance: 2.0
+  z_tolerance: 0.0
+algorithm:
+  num_restarts: 30
+  beam_width: 6
+  candidate_limit: 30
+  max_candidate_points: 200
+  max_points_per_layer: 40
+rescue:
+  max_gap: 64.0
+  max_attempts: 80
+  topup_max_donor_scan: 80
+  hole_fill_max_donor_scan: 160
+  hole_fill_max_add_items: 8
+  recipe_max_group_boxes: 400
+  recipe_max_count: 12
+small_box_detection:
+  index_smooth_window: 5
+  index_plateau_window: 6
+  index_plateau_rel_tol: 0.02
+  index_plateau_abs_tol: 0.8
+  index_min_slope_window: 3
+  index_near_peak_gap: 0.15
+excel_data:
+  # 数据集文件名（相对 data/ 目录）。改这一行即可切换数据集，无需改代码。
+  # 文件不存在时自动回退内置默认数据集。
+  source_file: selected_5000_full_regular_10_0_chain.xlsx
+  result_sheet: 最终挑选结果
+  bms_sheet: 包装物料主数据(BMS)

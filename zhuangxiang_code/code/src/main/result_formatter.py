@@ -98,6 +98,39 @@ class ResultFormatter:
             "pair_tried": pair_tried,
             "pair_improved": pair_improved,
             "pair_budget": repack_result.get("pair_budget", 0),
+            "consolidate_tried": repack_result.get("consolidate_tried", 0),
+            "consolidate_accepted": repack_result.get("consolidate_accepted", 0),
+            "consolidate_old_pallets": repack_result.get("consolidate_old_pallets", 0),
+            "consolidate_new_pallets": repack_result.get("consolidate_new_pallets", 0),
+            "consolidate_new_success": repack_result.get("consolidate_new_success", 0),
+            "consolidate_old_avg_fill": round(
+                repack_result.get("consolidate_old_avg_fill", 0.0), 4
+            ),
+            "consolidate_new_avg_fill": round(
+                repack_result.get("consolidate_new_avg_fill", 0.0), 4
+            ),
+            "consolidate_reason": repack_result.get("consolidate_reason", ""),
+            "extract_commit_success": repack_result.get(
+                "extract_commit_success", 0
+            ),
+            "redistribute_tried": repack_result.get("redistribute_tried", 0),
+            "redistribute_accepted": repack_result.get(
+                "redistribute_accepted", 0
+            ),
+            "redistribute_dissolved": repack_result.get(
+                "redistribute_dissolved", 0
+            ),
+            "redistribute_reason": repack_result.get("redistribute_reason", ""),
+            "fill_compact_merges": repack_result.get("fill_compact_merges", 0),
+            "fill_compact_reason": repack_result.get(
+                "fill_compact_reason", ""
+            ),
+            "swap_tried": repack_result.get("swap_tried", 0),
+            "swap_accepted": repack_result.get("swap_accepted", 0),
+            "swap_surplus_total": round(
+                repack_result.get("swap_surplus_total", 0.0), 3
+            ),
+            "swap_reason": repack_result.get("swap_reason", ""),
             "targeted_tried": repack_result.get("targeted_tried", 0),
             "targeted_success": repack_result.get("targeted_success", 0),
             "targeted_unreachable": repack_result.get("targeted_unreachable", 0),
@@ -337,18 +370,36 @@ class ResultFormatter:
 
     @staticmethod
     def validate_output_quality(raw_boxes: List[Dict], pallets: List[Dict]) -> None:
-        """业务输出质量门禁：不允许漏箱、重箱、空托盘或零尺寸箱。"""
+        """业务输出质量门禁：不允许漏箱、重箱、空托盘、零尺寸箱或 case_group 混装。
+
+        case_group 纯度用输入箱 id→case_group 映射校验（权威口径，不依赖输出
+        字段透传）：同一托盘上所有箱子的归一化 case_group 必须一致。
+        """
+        from src.utils.case_group import normalize_case_group
+
         input_ids = [str(box.get('id')) for box in raw_boxes]
         input_id_set = set(input_ids)
+        cg_by_id = {
+            str(box.get('id')): normalize_case_group(box.get('case_group'))
+            for box in raw_boxes
+        }
         output_ids = []
         empty_pallet_ids = []
         zero_dimension_boxes = []
+        case_group_mixed = []
 
         for pallet in pallets:
             items = pallet.get('packed_items', [])
             if not items:
                 empty_pallet_ids.append(pallet.get('pallet_id'))
                 continue
+            pallet_groups = {
+                cg_by_id[str(item.get('id'))]
+                for item in items
+                if str(item.get('id')) in cg_by_id
+            }
+            if len(pallet_groups) > 1:
+                case_group_mixed.append(pallet.get('pallet_id'))
             for item in items:
                 item_id = str(item.get('id'))
                 output_ids.append(item_id)
@@ -388,6 +439,8 @@ class ResultFormatter:
             violations.append(f"duplicate_boxes={duplicate_ids[:5]}")
         if zero_dimension_boxes:
             violations.append(f"zero_dimension_boxes={zero_dimension_boxes[:5]}")
+        if case_group_mixed:
+            violations.append(f"case_group_mixed_pallets={case_group_mixed[:5]}")
 
         if violations:
             raise ValueError("输出质量门禁失败：" + "; ".join(violations))

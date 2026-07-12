@@ -11,6 +11,7 @@ from .center_of_mass import validate_center_of_mass
 from .gap_checker import passes_box_gap_constraint
 from .overlap import axis_overlap_len
 from .support import direct_support_ratio
+from ..utils.case_group import find_case_group_violation
 from ..utils.helpers import passes_small_box_not_on_larger_constraint
 
 
@@ -64,6 +65,15 @@ def validate_pallet_constraints(
         small_box_below_enabled = constraint_config.small_box_below_enabled
     violations: List[Dict] = []
     items = pallet_plan.get("packed_items", []) or []
+    # case_group 同组约束（必须约束，数据驱动：全 0/缺失时永不触发）：
+    # 非 0 case_group 的箱子只能与相同值的箱子同托盘。分组隔离已结构性保证，
+    # 此处为门禁层保险（与放置层同源），防未来跨组重排破坏隔离。
+    cg_violation = find_case_group_violation(items)
+    if cg_violation:
+        violations.append({
+            "type": "case_group_mixed",
+            "detail": cg_violation,
+        })
     # 达标盘免 gap 校验（用户决策）：gap 约束本意是防止装箱偷懒留大空隙导致装
     # 不满；整盘指数达标即已尽力装满，剩余空隙是高密度装载的几何必然，不再以
     # gap 判失败。未达标盘仍查 gap（防偷懒）。越界/重叠/支撑/重心/吸盘恒查，
@@ -120,7 +130,8 @@ def validate_pallet_constraints(
             "height": float(item.get("raw_height", item.get("height", 0)) or 0),
         }
         if not _gap_exempt and not passes_box_gap_constraint(
-            pos, dims, raw, others, max_gap=max_gap
+            pos, dims, raw, others, max_gap=max_gap,
+            pallet_dims=pallet_dims,
         ):
             violations.append({
                 "type": "gap",

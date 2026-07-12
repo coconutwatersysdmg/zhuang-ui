@@ -72,13 +72,20 @@ python code/run_packing.py --safe
 | 规则 | 说明 | 位置 |
 |---|---|---|
 | 分组 | 按 `(pallet_type, sales_order_no)` 分组，组内独立装箱 | `src/main/order_processor.py` |
+| case_group 同组 | 箱子可选属性 `case_group`：0/缺失＝无约束；非 0 时该箱**只能与相同 `case_group` 值的箱子同托盘**（实现为分组再细分＋双层门禁；数据不带该属性时行为与历史完全一致）。接口见 [`docs/case_group同组约束接口说明.md`](docs/case_group同组约束接口说明.md) | `src/utils/case_group.py`、`src/main/order_processor.py` |
 | 指数目标 | `MH423C -> 192`，`MH110 -> 32` | `src/config/constants.py` |
 | 达标判定 | 根据 `mpm_total` 与托盘目标指数判定 `SUCCESS / FAILED` | `src/rescue/pallet_evaluator.py` |
 | 标准输入 | 支持直接传入标准化 `boxes` | `src/main/workflow.py` |
+| WCS 接口对接（适配层已实现） | 企业 WCS↔机器人 HTTP/JSON 接口：库存→逐箱输入、装箱报告→规划输出（layers/seq）的纯数据适配层（算法核心零改动；HTTP 服务壳待现场） | `src/adapter/wcs_adapter.py`、[`docs/WCS接口对接分析与算法接入说明.md`](docs/WCS接口对接分析与算法接入说明.md) |
 | 普通 Excel 输入 | 两表 Excel 适配为标准化 `boxes` | `src/data/excel_loader.py` |
 | 新增箱输入 | 三表 Excel 拆成初始箱和新增箱 | `src/incremental/loader.py` |
 | 箱子守恒 | 输出前校验不漏箱、不重箱、不空托盘 | `src/main/result_formatter.py` |
 | 当前托盘装满优先 | 达标后继续尝试吸收可合法放入的剩余箱 | `src/main/pallet_packer.py` |
+| 失败盘互借修复（凑标+合并装满） | 指数救援后：①凑标阶段——失败池上重跑配方规划，把凑得出目标指数的箱子组合提成达标盘；②剩余箱合并重装为更少、更满的托盘（棘轮验收：守恒+门禁+盘数更少或新增达标；无改进可能时早停省时；**超预算降级快速收尾，已凑出的达标盘绝不丢弃**——慢机器只损失装满质量不损失达标数；GCP/baseline 两路径都生效）。见 [`docs/失败托盘互借修复说明.md`](docs/失败托盘互借修复说明.md) | `src/rescue/rescue_optimizer.py` |
+| 指数互换（成功盘↔失败盘） | 富余成功盘（指数>目标）的高指数箱与失败盘低指数箱外科手术式互换：成功盘保持达标、失败盘凑到目标；只摘"上方无箱"的箱、既有布局增量插入；双盘门禁+守恒+双双达标才提交。数学边界：可注入指数 ≤ 组内成功盘总富余 σ（诊断字段透明） | `src/rescue/index_swap.py` |
+| 指数再分配（溶解低填充达标盘） | "填充 70% 就达标"的盘 = 高指数密度箱被错配集中；把填充率 <0.80 的达标盘溶解进失败池一起重跑配方规划，高密度箱摊进失败盘的富余体积 → 同样总指数凑出更多达标盘。两道廉价预判（规划净增益、实装数须超溶解数）不过即秒退；独立棘轮保证溶解的达标盘绝不净亏 | `src/rescue/rescue_optimizer.py`（`_redistribute`） |
+| 装满压实（碎片失败盘兜底合并） | 整池合并全有全无被拒后残留的碎盘（如 fill 0.07/0.14）两两合并成一盘：最空盘配最空可容搭档，PoolCompactor → **CP-SAT 精确摆柱**（贪心摆不开、精确解能开）→ beam 三通道递进；单一搭档装不下时分摊吸收进多个失败盘。逐对提交（守恒+门禁+严格减盘），秒级/对。组内子聚类拆开的同一真实订单在输出前**跨子组**再压实一次 | `src/rescue/rescue_optimizer.py`（`_fill_compact`）+ `src/main/workflow.py`（`_cross_group_fill_compact`） |
+| 盘号统一 | 输出前无条件按 (托盘类型, 订单) 顺序重编 `类型-订单-序号`：救援临时号（-RC*）与合并断号不泄漏，所有报告格式一致、组内连续 | `src/main/workflow.py`（`_restore_split_orders`） |
 
 ## 装箱约束
 
@@ -90,7 +97,7 @@ python code/run_packing.py --safe
 |---|---|---|---|
 | 不超界 | 箱子不得超出托盘 `length / width / height` | —— | `src/packing/placement_validator.py` |
 | 不重叠 | 箱子之间不得发生几何重叠 | —— | `src/geometry/overlap.py`、`src/packing/placement_validator.py` |
-| 箱间间隙 | 相邻箱子在 XY 方向的正向间隙必须小于阈值 | `max_box_gap_mm`（`6.0`） | `src/geometry/gap_checker.py` |
+| 箱间间隙 | 贴紧摆放（锚定语义）：X、Y 每个轴上须贴紧一侧邻箱或托盘边（间隙 < 阈值）；贴紧后对面残余的不可避免间隙（行尾残缝、混底面槽位残缝）不违规；两侧均不贴紧的浮空摆放拒绝 | `max_box_gap_mm`（`6.0`） | `src/geometry/gap_checker.py` |
 | 支撑率 | 非底层箱子的直接支撑率必须不低于阈值 | `support_ratio_threshold`（`0.8`） | `src/geometry/support.py` |
 | 重心稳定 | 整体重心相对托盘中心的偏移比例不得超过阈值 | `center_of_mass_tolerance`（`1/3`） | `src/geometry/center_of_mass.py` |
 
@@ -137,6 +144,11 @@ workflow.run_with_boxes(boxes)
 - `sales_order_no`
 - `min_pack_multiple`
 - `pallet_dims`
+
+可选字段：
+
+- `case_group`：同组约束标识（0/缺失＝无约束；非 0 只能与同值箱子同托盘）。
+  正式接入时由公司系统接口按同名属性传入；本地 Excel 测试用同名可选列。
 
 ### 运行
 
@@ -324,6 +336,8 @@ code/
 python code/tests/test_packing.py
 python code/tests/test_main.py
 python code/tests/test_rescue_pool.py
+python code/tests/test_rescue_consolidation.py
+python code/tests/test_index_swap.py
 python code/tests/test_incremental.py
 python code/tests/test_recipe_planner.py
 python code/tests/test_incremental_gate.py

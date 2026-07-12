@@ -13,19 +13,33 @@ def passes_box_gap_constraint(
     dims: Dict[str, float],
     raw_dims: Dict[str, float],
     placed_boxes: List[Dict],
-    max_gap: float = 6.0
+    max_gap: float = 6.0,
+    pallet_dims: Dict[str, float] = None,
 ) -> bool:
     """
-    检查箱子在指定位置是否满足箱间间隙约束
+    检查箱子在指定位置是否满足箱间间隙约束（锚定语义）
 
-    验证候选箱子与同层相邻箱子之间的间隙是否小于最大允许间隙。
+    约束本意是"箱子逐个、贴紧摆放"，防止能推齐而不推齐的偷懒浮空；
+    不禁止贴紧一侧后对面残余的不可避免间隙（行尾残缝、混底面槽位残缝）。
+
+    锚定判定：X、Y 每个轴上，满足以下任一条件即视为"贴紧摆放"：
+        1. 该轴任一侧与最近邻箱的正间隙 < max_gap（贴紧邻箱）；
+        2. 该轴任一侧距托盘边界 < max_gap（推到托盘边，需提供 pallet_dims；
+           x_min/y_min 侧靠原点，无需 pallet_dims 也可判定）；
+        3. 该轴两侧均无有效邻箱（无可贴紧对象，不受约束）。
+    两轴均锚定则通过；某轴存在邻箱、既未贴紧邻箱也未靠边则拒绝。
+
+    该语义是旧"四方向最近正间隙必须 < max_gap"规则的纯放宽：
+    旧规则接受的摆放（各方向间隙全部 < max_gap 或无邻箱）必然两轴锚定。
 
     Args:
         point: 候选位置 {'x': float, 'y': float, 'z': float}
         dims: 候选箱子的有效尺寸（包含容差）
         raw_dims: 候选箱子的原始尺寸（不含容差）
         placed_boxes: 已放置的箱子列表
-        max_gap: 最大允许间隙（毫米），默认6.0
+        max_gap: 贴紧判定阈值（毫米），默认6.0
+        pallet_dims: 可选托盘尺寸 {'length','width'}，提供时 x_max/y_max
+            侧靠托盘边也算锚定；不提供时仅原点侧可按坐标判定靠边
 
     Returns:
         如果满足间隙约束返回True，否则返回False
@@ -33,9 +47,7 @@ def passes_box_gap_constraint(
     Notes:
         - 邻居判定使用 Z 区间重叠（而非 Z 坐标严格相等），覆盖跨层并排放置
           的箱子，避免漏判
-        - 检查四个方向（x_min, x_max, y_min, y_max）的最近间隙
-        - 如果某个方向没有 Z 区间重叠且垂直方向投影重叠的邻箱，该方向不受约束
-        - 托盘墙不参与本约束
+        - 间隙按原始尺寸（raw dims）计算，尺寸容差产生的 2mm 名义间隙视为贴紧
 
     Examples:
         >>> point = {'x': 100, 'y': 0, 'z': 0}
@@ -115,8 +127,35 @@ def passes_box_gap_constraint(
             if back_gap >= -eps:
                 nearest_gaps['y_max'] = back_gap if nearest_gaps['y_max'] is None else min(nearest_gaps['y_max'], back_gap)
 
-    # 每个方向：要么没有有效邻居（None），要么最近正间隙 < max_gap
-    return all(gap is None or gap < max_gap - eps for gap in nearest_gaps.values())
+    # 锚定判定：每个轴上，贴紧任一侧邻箱或托盘边即可；两侧均无邻箱不受约束。
+    def _axis_anchored(low_gap, high_gap, low_edge, high_edge) -> bool:
+        if low_gap is None and high_gap is None:
+            return True  # 无有效邻箱，不受约束
+        if low_gap is not None and low_gap < max_gap - eps:
+            return True  # 贴紧低侧邻箱
+        if high_gap is not None and high_gap < max_gap - eps:
+            return True  # 贴紧高侧邻箱
+        if low_edge is not None and low_edge < max_gap - eps:
+            return True  # 推到低侧托盘边
+        if high_edge is not None and high_edge < max_gap - eps:
+            return True  # 推到高侧托盘边
+        return False
+
+    pallet_length = None
+    pallet_width = None
+    if pallet_dims:
+        pallet_length = float(pallet_dims.get('length', 0) or 0) or None
+        pallet_width = float(pallet_dims.get('width', 0) or 0) or None
+
+    return _axis_anchored(
+        nearest_gaps['x_min'], nearest_gaps['x_max'],
+        x_min,
+        (pallet_length - x_max) if pallet_length is not None else None,
+    ) and _axis_anchored(
+        nearest_gaps['y_min'], nearest_gaps['y_max'],
+        y_min,
+        (pallet_width - y_max) if pallet_width is not None else None,
+    )
 
 
 def side_gap_flags(

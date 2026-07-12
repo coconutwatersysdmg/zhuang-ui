@@ -114,7 +114,8 @@ def incremental_pallet_ok(
 
     # 5. new_box 间隙（vs 全部既有箱）
     if not passes_box_gap_constraint(
-        pos, dims, _raw(new_box), placed, max_gap=max_gap
+        pos, dims, _raw(new_box), placed, max_gap=max_gap,
+        pallet_dims=pallet_dims,
     ):
         return False
 
@@ -134,7 +135,8 @@ def incremental_pallet_ok(
             if other.get('id') != box.get('id') and other.get('position')
         ]
         if not passes_box_gap_constraint(
-            box_pos, box_dims, _raw(box), others, max_gap=max_gap
+            box_pos, box_dims, _raw(box), others, max_gap=max_gap,
+            pallet_dims=pallet_dims,
         ):
             return False
 

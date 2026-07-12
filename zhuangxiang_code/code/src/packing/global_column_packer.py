@@ -37,7 +37,41 @@ _PATTERN_TYPE_CAP = 40  # 单类型在一盘内的枚举上限
 _ILP_MAX_TYPES = 14  # 柱类型数 ≤ 此值才考虑精确 ILP（否则贪心，避免组合爆炸）
 _MAX_ENUM = 2_000_000  # itertools.product 枚举空间上限（超过即改走贪心）
 _ILP_TIME = 15.0  # 单组 ILP 时间上限（秒）
-_CPSAT_TIME = 15.0  # 单盘 CP-SAT 精确摆柱时间上限（秒）
+_CPSAT_TIME = 15.0  # 单盘 CP-SAT 精确摆柱时间上限（秒，首盘/每 pattern 首次）
+_CPSAT_RETRY_TIME = 4.0  # 同 pattern 先前装不满时的短重试时限（秒）
+_CPSAT_MAX_FAILS = 2  # 同 pattern 累计装不满次数上限，超过即余盘全退残料
+
+
+def _fp_key(col: Dict) -> Tuple[int, int]:
+    """柱的底面缓存键（原始 xlen/ylen 取整；同 pattern 内按此配对复用布局）。"""
+    return (int(round(float(col['xlen']))), int(round(float(col['ylen']))))
+
+
+def _apply_layout(layout: List[tuple], plate: List[Dict]) -> List[tuple]:
+    """把已解出的满解布局套到同 pattern 的另一盘柱上。
+
+    layout = [(fp_key, rotated, x, y)]（来自首盘 CP-SAT 满解）。同 pattern 的
+    盘柱型构成完全相同（2D 摆放只看底面），逐槽位按底面键配对即可完全复用，
+    免去重复求解：零耗时且消除 CP-SAT 多线程在同 run 内的随机波动。
+    配不齐（防御性，理论不可能）返回 []，调用方回退正常求解。
+    """
+    pool: Dict[Tuple[int, int], List[Dict]] = defaultdict(list)
+    for c in plate:
+        pool[_fp_key(c)].append(c)
+    placed: List[tuple] = []
+    for fp_key, rotated, x, y in layout:
+        cands = pool.get(fp_key)
+        if not cands:
+            return []
+        c = cands.pop()
+        col2 = dict(c)
+        col2['_src'] = c
+        if rotated:
+            col2['xlen'], col2['ylen'] = c['ylen'], c['xlen']
+        placed.append((col2, x, y))
+    if any(cands for cands in pool.values()):
+        return []  # 有柱没被布局覆盖 → 不是满解复用场景
+    return placed
 
 
 def _fp_orient(fp: Tuple[int, int]) -> Tuple[float, float]:
@@ -510,6 +544,14 @@ class GlobalColumnPacker:
                 if patterns:
                     usage = _solve_ilp(patterns, counts, time_limit=_ILP_TIME)
                     pool_idx = {t: 0 for t in types}
+                    # 同 pattern 的盘柱型构成完全相同（2D 摆放只看底面）：
+                    # - 成功布局缓存：首盘 CP-SAT 解出满解后，后续同 pattern 盘
+                    #   直接按底面复用该布局（零耗时、消除同 run 内多线程波动）；
+                    # - 失败短重试：装不满的 pattern 后续盘只给短时限重试，最多
+                    #   _CPSAT_MAX_FAILS 次后跳过——不再对注定失败的重复 pattern
+                    #   反复烧满时限（慢机器上这是 GCP 回退前的主要耗时）。
+                    layout_cache: Dict[int, List[tuple]] = {}
+                    fail_count: Dict[int, int] = {}
                     for p, v in enumerate(usage):
                         for _ in range(v):
                             plate = []
@@ -521,10 +563,30 @@ class GlobalColumnPacker:
                             # CP-SAT 精确摆柱（允许旋转/混合列宽，多装；达标盘免 gap）。
                             placed, unpl = _grid_pack(plate, pallet_dims, tol)
                             if unpl:
+                                cached = layout_cache.get(p)
+                                if cached is not None:
+                                    placed = _apply_layout(cached, plate)
+                                    if placed:
+                                        boards.append((placed, 0.0))
+                                        continue
+                                fails = fail_count.get(p, 0)
+                                if fails >= _CPSAT_MAX_FAILS:
+                                    continue  # 该 pattern 已多次证明装不满 → 退残料
+                                tl = _CPSAT_TIME if fails == 0 else _CPSAT_RETRY_TIME
                                 placed, unpl = _cpsat_pack_2d(
-                                    plate, pallet_dims, time_limit=_CPSAT_TIME)
+                                    plate, pallet_dims, time_limit=tl)
+                                if unpl:
+                                    fail_count[p] = fails + 1
                                 if placed:
                                     placed = _center_placed(placed, pallet_dims, tol)
+                                    if not unpl:
+                                        # 满解 → 缓存居中后布局，供同 pattern 复用
+                                        layout_cache[p] = [
+                                            (_fp_key(c2.get('_src', c2)),
+                                             c2['xlen'] != c2.get('_src', c2)['xlen'],
+                                             x, y)
+                                            for c2, x, y in placed
+                                        ]
                                     boards.append((placed, 0.0))
                             elif placed:
                                 boards.append((placed, None))
@@ -555,8 +617,38 @@ class GlobalColumnPacker:
         # beam 放置时逐箱校验全部约束（间隙/支撑/吸盘），保证残料盘必过门禁；
         # 达标优先、装不满则尽量满。半空柱造成的内部缝由 beam 自然避免。
         residual_boxes = [b for c in cols for b in c['boxes']]
+
+        # 提前止损：盘数只增不减、剩余箱至少还需 ceil(体积/托盘容积) 盘。
+        # 一旦「已成盘数 + 残料体积下界」注定超过 workflow 的爆盘回退阈值
+        # （理论盘数+1），继续装只是白烧时间——立即带 gcp_bailout 标记返回，
+        # 调用方按原语义丢弃并回退 baseline（结果等价，只是更快）。
+        bail_cap = None
+        pallet_vol = (
+            float(pallet_dims.get('length', 0) or 0)
+            * float(pallet_dims.get('width', 0) or 0)
+            * float(pallet_dims.get('height', 0) or 0))
+        if target_mpm is not None and pallet_vol > 0:
+            _tm = sum(float(b.get('min_pack_multiple', 0) or 0)
+                      for b in boxes_in_group)
+            bail_cap = max(1, int(-(-_tm // float(target_mpm)))) + 1
+
+        def _doomed() -> bool:
+            if bail_cap is None:
+                return False
+            vol = sum(
+                float(b.get('length', 0) or 0)
+                * float(b.get('width', 0) or 0)
+                * float(b.get('height', 0) or 0)
+                for b in residual_boxes)
+            lb = int(-(-vol // pallet_vol)) if vol > 0 else 0
+            return len(plan) + lb > bail_cap
+
+        bailed = False
         beam_dead = False  # beam 已无法装下任何残料 → 剩余全部单柱兜底，不再空跑 beam
         while residual_boxes:
+            if _doomed():
+                bailed = True
+                break
             placed_items = []
             if not beam_dead:
                 placed_items, _unfitted = packer.pack(
@@ -614,6 +706,7 @@ class GlobalColumnPacker:
             ) if target_mpm else 0,
             'residual_mpm': 0,
             'global_column_packer': {'pallets': len(plan), 'success': success},
+            'gcp_bailout': bailed,
         }
         runtime = {'packing': time.time() - t0, 'topup': 0.0, 'retry': 0.0}
         return plan, runtime, index_diag

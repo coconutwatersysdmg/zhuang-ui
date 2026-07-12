@@ -1,0 +1,119 @@
+已加载约束配置：temp/cfg_668v2.yaml
+load D:\anaconda3\install\lib\site-packages\ortools\.libs\zlib1.dll...
+load D:\anaconda3\install\lib\site-packages\ortools\.libs\abseil_dll.dll...
+load D:\anaconda3\install\lib\site-packages\ortools\.libs\utf8_validity.dll...
+load D:\anaconda3\install\lib\site-packages\ortools\.libs\re2.dll...
+load D:\anaconda3\install\lib\site-packages\ortools\.libs\libprotobuf.dll...
+load D:\anaconda3\install\lib\site-packages\ortools\.libs\highs.dll...
+load D:\anaconda3\install\lib\site-packages\ortools\.libs\ortools.dll...
+已加载配置数据集：E:\yue's project\maduo\zhuangxiang_code\data\668箱子数据集2.xlsx
+检测到小箱子体积阈值: 11130000.00 mm^3
+小箱子数量: 0，非小箱子数量: 668
+数据预处理和箱子分组完成（按托盘类型+销售订单号）。
+----------------------------------------
+  - 组内子聚类：1 个混合订单拆出规则子集走 GCP、杂箱走 baseline。
+正在处理托盘类型：MH423C，销售订单号：ANALYSIS_001
+  - 主算法：全局列式装箱 + 柱级组合优化（GCP）。
+  - 失败托盘互借诊断：未合并（no_target_or_single_plan）。
+托盘类型 MH423C（销售订单号：ANALYSIS_001）处理完成：总托盘 1，指数达标 1，未达标 0，平均缺口 0.00，最大缺口 0.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/0/0，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=7.28s，main_topup=0.00s，retry=0.00s，failed_pool=0.00s，repack=0.00s，total=7.28s。
+
+正在处理托盘类型：MH423C，销售订单号：ANALYSIS_002
+  - 主算法：全局列式装箱 + 柱级组合优化（GCP）。
+  - 失败盘装满压实：合并/吸收 1 次（纯减盘数）。
+  - 失败托盘互借诊断：未合并（aborted_no_improvement_possible）。
+托盘类型 MH423C（销售订单号：ANALYSIS_002）处理完成：总托盘 1，指数达标 0，未达标 1，平均缺口 4.00，最大缺口 4.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=1/0/0，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=0.50s，main_topup=0.00s，retry=0.00s，failed_pool=0.00s，repack=0.29s，total=0.79s。
+
+正在处理托盘类型：MH423C，销售订单号：ANALYSIS_002__SPLITREST__
+  - 该分组不适合列式（多非满柱）→ 回退 beam + 配方优先。
+  - 配方优先[fast]：规划 0 实例，实装成功 0，配方路径不可用 → 采用基线方案。
+  - 指数诊断：箱子 2 个，总指数 4，目标 192，理论最多达标托盘 0 个，剩余指数 4。
+  - 几何诊断：典型整层堆叠单盘参考上限 4/192。 当前目标可能受托盘高度/箱型组合限制。
+  - 几何不可达标记：典型整层上限 4 < 目标 192，救援优先压缩托盘数和填充率。
+  - 失败托盘互借诊断：未合并（no_target_or_single_plan）。
+托盘类型 MH423C（销售订单号：ANALYSIS_002__SPLITREST__）处理完成：总托盘 1，指数达标 0，未达标 1，平均缺口 188.00，最大缺口 188.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/0/1，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=0.00s，main_topup=0.00s，retry=0.00s，failed_pool=0.00s，repack=0.00s，total=0.01s。
+
+正在处理托盘类型：MH423C，销售订单号：ANALYSIS_003
+  - 主算法：全局列式装箱 + 柱级组合优化（GCP）。
+  - 失败托盘互借诊断：未合并（not_better）。
+托盘类型 MH423C（销售订单号：ANALYSIS_003）处理完成：总托盘 2，指数达标 0，未达标 2，平均缺口 96.00，最大缺口 136.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/0/2，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=15.86s，main_topup=0.00s，retry=0.00s，failed_pool=0.00s，repack=0.68s，total=16.54s。
+
+正在处理托盘类型：MH423C，销售订单号：ANALYSIS_004
+  - 主算法：全局列式装箱 + 柱级组合优化（GCP）。
+  - 失败托盘互借诊断：未合并（no_target_or_single_plan）。
+托盘类型 MH423C（销售订单号：ANALYSIS_004）处理完成：总托盘 1，指数达标 1，未达标 0，平均缺口 0.00，最大缺口 0.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/0/0，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=0.06s，main_topup=0.00s，retry=0.00s，failed_pool=0.00s，repack=0.00s，total=0.07s。
+
+正在处理托盘类型：MH423C，销售订单号：ANALYSIS_005
+  - 主算法：全局列式装箱 + 柱级组合优化（GCP）。
+  - 失败托盘互借诊断：未合并（no_target_or_single_plan）。
+托盘类型 MH423C（销售订单号：ANALYSIS_005）处理完成：总托盘 1，指数达标 1，未达标 0，平均缺口 0.00，最大缺口 0.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/0/0，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=0.03s，main_topup=0.00s，retry=0.00s，failed_pool=0.00s，repack=0.00s，total=0.03s。
+
+正在处理托盘类型：MH423C，销售订单号：ANALYSIS_006
+  - 主算法：全局列式装箱 + 柱级组合优化（GCP）。
+  - GCP 盘数远超理论（CP-SAT 装不满）→ 回退 baseline beam + 配方优先。
+  - 配方优先[fast]：规划 0 实例，实装成功 0，配方路径不可用 → 采用基线方案。
+  - 指数诊断：箱子 67 个，总指数 192，目标 192，理论最多达标托盘 1 个，剩余指数 0。
+  - 几何诊断：典型整层堆叠单盘参考上限 120/192。 当前目标可能受托盘高度/箱型组合限制。
+  - 几何不可达标记：典型整层上限 120 < 目标 192，救援优先压缩托盘数和填充率。
+  - 失败托盘互借诊断：未合并（aborted_no_improvement_possible）。
+托盘类型 MH423C（销售订单号：ANALYSIS_006）处理完成：总托盘 2，指数达标 0，未达标 2，平均缺口 96.00，最大缺口 158.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/0/2，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=5.13s，main_topup=0.03s，retry=0.00s，failed_pool=0.00s，repack=13.35s，total=33.73s。
+
+正在处理托盘类型：MH423C，销售订单号：ANALYSIS_007
+  - 主算法：全局列式装箱 + 柱级组合优化（GCP）。
+  - 失败托盘互借诊断：未合并（aborted_no_improvement_possible）。
+托盘类型 MH423C（销售订单号：ANALYSIS_007）处理完成：总托盘 2，指数达标 0，未达标 2，平均缺口 96.00，最大缺口 160.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/0/2，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=26.46s，main_topup=0.00s，retry=0.00s，failed_pool=0.00s，repack=24.73s，total=51.20s。
+
+正在处理托盘类型：MH423C，销售订单号：ANALYSIS_008
+  - 主算法：全局列式装箱 + 柱级组合优化（GCP）。
+  - 失败托盘互借诊断：未合并（no_target_or_single_plan）。
+托盘类型 MH423C（销售订单号：ANALYSIS_008）处理完成：总托盘 1，指数达标 1，未达标 0，平均缺口 0.00，最大缺口 0.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/0/0，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=0.09s，main_topup=0.00s，retry=0.00s，failed_pool=0.00s，repack=0.00s，total=0.10s。
+
+正在处理托盘类型：MH423C，销售订单号：ANALYSIS_009
+  - 主算法：全局列式装箱 + 柱级组合优化（GCP）。
+  - 失败托盘互借诊断：未合并（no_target_or_single_plan）。
+托盘类型 MH423C（销售订单号：ANALYSIS_009）处理完成：总托盘 1，指数达标 1，未达标 0，平均缺口 0.00，最大缺口 0.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/0/0，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=0.71s，main_topup=0.00s，retry=0.00s，failed_pool=0.00s，repack=0.00s，total=0.72s。
+
+正在处理托盘类型：MH423C，销售订单号：ANALYSIS_010
+  - 主算法：全局列式装箱 + 柱级组合优化（GCP）。
+  - 失败托盘互借诊断：未合并（aborted_no_improvement_possible）。
+托盘类型 MH423C（销售订单号：ANALYSIS_010）处理完成：总托盘 2，指数达标 0，未达标 2，平均缺口 96.00，最大缺口 150.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/0/2，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=17.37s，main_topup=0.00s，retry=0.00s，failed_pool=0.00s，repack=5.23s，total=22.60s。
+
+正在处理托盘类型：MH423C，销售订单号：ANALYSIS_011
+  - 主算法：全局列式装箱 + 柱级组合优化（GCP）。
+  - 失败托盘互借诊断：未合并（no_target_or_single_plan）。
+托盘类型 MH423C（销售订单号：ANALYSIS_011）处理完成：总托盘 1，指数达标 1，未达标 0，平均缺口 0.00，最大缺口 0.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/0/0，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=0.04s，main_topup=0.00s，retry=0.00s，failed_pool=0.00s，repack=0.00s，total=0.04s。
+
+========================================
+统计汇总：总托盘 16，指数达标 6，未达标 10，未知 0，平均缺口 96.00，最大缺口 188.00，失败托盘互借修复成功 0
+KPI汇总：near/mid/deep=1/0/9，pair尝试=0，pair改进=0，pair效率=0.00%
+耗时汇总：packing=73.53s，main_topup=0.03s，retry=0.00s，repack=44.28s，end_to_end=142.48s
+========================================
+========================================
+最终装箱方案已保存至：E:\yue's project\maduo\zhuangxiang_code\output\packing_plan_20260711_184251.json
+托盘统计Excel已保存至：E:\yue's project\maduo\zhuangxiang_code\output\packing_plan_summary_20260711_184251.xlsx
+========================================
+算法总运行时间：142.48 秒
+========================================

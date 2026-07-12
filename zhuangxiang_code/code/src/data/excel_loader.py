@@ -21,6 +21,7 @@ from src.config.constants import (
     SMALL_BOX_SOURCE_FILE,
     SMALL_BOX_SOURCE_SHEET,
 )
+from src.utils.case_group import normalize_case_group
 
 
 def _detect_small_box_threshold(df_boxes: pd.DataFrame) -> Optional[float]:
@@ -167,6 +168,9 @@ def load_boxes(filepath: Optional[str] = None) -> Optional[List[Dict]]:
             "min_pack_multiple": float(min_pack_multiple),
             "pallet_type": row['Case类型'],
             "sales_order_no": str(sales_order_no),
+            # case_group 同组约束（可选列，缺列/空值＝0＝无约束）：非 0 时该箱
+            # 只能与相同 case_group 的箱子同托盘。正式接入走系统接口同名字段。
+            "case_group": normalize_case_group(row.get('case_group', 0)),
             "pallet_dims": {
                 "length": row['托盘长'],
                 "width": row['托盘宽'],

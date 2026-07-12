@@ -7,6 +7,8 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 
+from src.utils.case_group import normalize_case_group
+
 
 INITIAL_SHEET = "最终挑选结果"
 ADDITION_SHEET = "新增箱"
@@ -122,6 +124,8 @@ def _rows_to_boxes(
             "min_pack_multiple": float(mpm_by_type.get(box_type, 0.0)),
             "pallet_type": str(row["Case类型"]),
             "sales_order_no": str(sales_order_no),
+            # case_group 同组约束（可选列，缺列/空值＝0＝无约束）
+            "case_group": normalize_case_group(row.get("case_group", 0)),
             "pallet_dims": {
                 "length": _num(row.get("托盘长")),
                 "width": _num(row.get("托盘宽")),

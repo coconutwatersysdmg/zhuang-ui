@@ -5,10 +5,12 @@
 驱动端到端装箱流程。
 """
 
+import inspect
 import time
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
+from ..utils.case_group import CASE_GROUP_ORDER_TAG, split_case_group_tag
 from .order_processor import OrderProcessor
 from .pallet_packer import PalletPacker
 from .recipe_first import pack_group_recipe_first
@@ -169,10 +171,6 @@ class PackingWorkflow:
             rescue_timing["recipe_rebuild_seconds"] = time.time() - t_stage
 
             t_stage = time.time()
-            repack = self._rescue_optimizer.optimize_failed_by_failed(type_plan, target_mpm)
-            rescue_timing["pair_repack_seconds"] = time.time() - t_stage
-
-            t_stage = time.time()
             low_fill_diag = {"low_fill_tried": 0, "low_fill_accepted": 0, "reason": "geometric_target_unreachable"} if geometric_unreachable else self._low_fill_repacker.repack(type_plan, pallet_dims, target_mpm, geometric_unreachable)
             rescue_timing["low_fill_seconds"] = time.time() - t_stage
 
@@ -190,6 +188,12 @@ class PackingWorkflow:
                 if low_pair_diag:
                     low_diag.update(low_pair_diag)
 
+            # 互借修复（失败盘合并装满）放在救援链末尾：指数救援全部尝试过后，
+            # 把剩余失败盘的箱子合并重装为更少、更满的托盘（棘轮验收，不退步）。
+            t_stage = time.time()
+            repack = self._call_rescue_optimizer(type_plan, target_mpm, pallet_dims)
+            rescue_timing["pair_repack_seconds"] = time.time() - t_stage
+
             self._drop_empty_pallets(type_plan)
             repack_time = time.time() - repack_start
             rescued = hf.get("rescued", 0) + tu.get("rescued", 0) + rb.get("rescued", 0) + repack.get("rescued", 0) + max(0, low_fill_diag.get("low_fill_new_success", 0) - low_fill_diag.get("low_fill_old_success", 0)) + pool_diag.get("rescued", 0) + max(0, tail_diag.get("tail_absorb_new_success", 0) - tail_diag.get("tail_absorb_old_success", 0)) + max(0, low_diag.get("low_load_new_success", 0) - low_diag.get("low_load_old_success", 0))
@@ -206,6 +210,7 @@ class PackingWorkflow:
             runtime_stats["group_total_seconds"] += group_total
             self._print_group_summary(type_stats, rescued, pack_runtime["packing"], pack_runtime["retry"], repack_time, group_total, pallet_type, sales_order_no, repack)
 
+        self._cross_group_fill_compact(final_plan, by_type_stats)
         self._restore_split_orders(final_plan, by_type_stats)
         total_runtime = time.time() - start
         summary = {"overall": ResultFormatter.build_overall_summary(final_plan, by_type_stats, runtime_stats, total_runtime), "by_pallet_type": by_type_stats}
@@ -231,25 +236,39 @@ class PackingWorkflow:
         self._drop_empty_pallets(type_plan)
         # 爆盘回退：GCP 盘数远超理论盘数（高密度订单 CP-SAT 装不满 → 残料单柱
         # 兜底摊成大量小盘）时丢弃 GCP 结果，回退 baseline，防止比旧算法退步。
+        # gcp_bailout = packer 内部体积下界已证明必超阈，提前止损返回（同语义更快）。
         total_mpm = sum(float(b.get('min_pack_multiple', 0) or 0) for b in boxes_in_group)
         theo = max(1, int(-(-total_mpm // target_mpm))) if target_mpm else 1
-        if target_mpm is not None and len(type_plan) > theo + 1:  # 残料容忍 1 盘，超则回退
+        if index_diag.get('gcp_bailout') or (
+                target_mpm is not None and len(type_plan) > theo + 1):  # 残料容忍 1 盘，超则回退
             return False
+        # GCP 无救援链，但失败盘同样要"尽量装满"：挂互借修复（合并重装，
+        # 棘轮验收：守恒+门禁+盘数更少或新增达标才接受，结构上不退步）。
+        t_repack = time.time()
+        repack = self._call_rescue_optimizer(
+            type_plan, target_mpm, boxes_in_group[0].get('pallet_dims'),
+        )
+        repack_time = time.time() - t_repack
+        self._drop_empty_pallets(type_plan)
+        rescued = repack.get("rescued", 0)
         group_total = time.time() - group_start
         runtime = {
             "packing": pack_runtime["packing"], "topup": 0.0, "retry": 0.0,
-            "repack": 0.0, "total": group_total,
+            "repack": repack_time, "total": group_total,
+            "pair_repack_seconds": repack_time,
         }
         type_stats = ResultFormatter.build_type_stats(
-            type_plan, pallet_type, sales_order_no, index_diag, 0, runtime, {},
+            type_plan, pallet_type, sales_order_no, index_diag, rescued,
+            runtime, repack,
         )
         by_type_stats[f"{pallet_type}__{sales_order_no}"] = type_stats
         final_plan.extend(type_plan)
         runtime_stats["group_pack_seconds"] += pack_runtime["packing"]
+        runtime_stats["group_repack_seconds"] += repack_time
         runtime_stats["group_total_seconds"] += group_total
         self._print_group_summary(
-            type_stats, 0, pack_runtime["packing"], 0.0, 0.0,
-            group_total, pallet_type, sales_order_no, {},
+            type_stats, rescued, pack_runtime["packing"], 0.0, repack_time,
+            group_total, pallet_type, sales_order_no, repack,
         )
         return True
 
@@ -283,24 +302,149 @@ class PackingWorkflow:
             print(f"  - 组内子聚类：{split_cnt} 个混合订单拆出规则子集走 GCP、杂箱走 baseline。")
         return new_grouped
 
-    def _restore_split_orders(self, final_plan: List[Dict], by_type_stats: Dict) -> None:
-        """还原组内子聚类的临时后缀：盘与统计的销售订单号去后缀，盘号按真实
-        订单统一重编。仅在确实发生拆分时执行（无拆分则零改动，盘号不变）。"""
-        if not any(_SPLIT_REST_TAG in (p.get('sales_order_no') or '') for p in final_plan):
+    def _cross_group_fill_compact(
+        self, final_plan: List[Dict], by_type_stats: Dict,
+    ) -> None:
+        """跨子组装满压实：只处理被组内子聚类拆开的真实订单。
+
+        __SPLITREST__ 拆分是内部路由手段（规则子集走 GCP、杂箱走
+        baseline），但救援链按内部子组运行——杂箱组的碎片失败盘与主组的
+        可行搭档被人为隔开（如 fill 0.07 碎盘在 4 盘杂箱组里无搭档可并）。
+        所有组完成后按"真实订单"重聚（case_group 标签保留在订单号里，
+        业务隔离不破坏），对跨子组失败盘补一次装满压实（纯减盘，守恒+
+        门禁同 `RescueOptimizer._fill_compact`），并同步受影响子组的统计。
+        """
+        if self._rescue_optimizer is None or not hasattr(
+            self._rescue_optimizer, 'fill_compact'
+        ):
             return
+        groups: Dict = {}
         for p in final_plan:
-            o = p.get('sales_order_no') or ''
-            if _SPLIT_REST_TAG in o:
-                p['sales_order_no'] = o.replace(_SPLIT_REST_TAG, '')
+            order = p.get('sales_order_no') or ''
+            key = (p.get('pallet_type'), order.replace(_SPLIT_REST_TAG, ''))
+            info = groups.setdefault(key, {'plans': [], 'orders': set()})
+            info['plans'].append(p)
+            info['orders'].add(order)
+        from src.rescue.pallet_evaluator import PalletEvaluator
+        for (pallet_type, real_order), info in groups.items():
+            if len(info['orders']) < 2:
+                continue   # 未拆分：组内压实已做过，不重复
+            target_mpm = self._targets.get(pallet_type)
+            if target_mpm is None:
+                continue
+            plans = info['plans']
+            failed = [
+                p for p in plans
+                if p.get('mpm_status') == 'FAILED' and p.get('packed_items')
+            ]
+            if len(failed) < 2:
+                continue
+            dims = None
+            for p in plans:
+                items = p.get('packed_items') or []
+                if items and items[0].get('pallet_dims'):
+                    dims = items[0]['pallet_dims']
+                    break
+            if not dims:
+                continue
+            sub = list(plans)
+            diag = self._rescue_optimizer.fill_compact(
+                sub, float(target_mpm), pallet_dims=dims
+            )
+            if not diag.get("fill_compact_merges"):
+                continue
+            print(
+                f"  - 跨子组装满压实（{pallet_type} / {real_order}）："
+                f"合并 {diag['fill_compact_merges']} 次（纯减盘数）。"
+            )
+            # 原组托盘整体替换（保持组首位置，其余组次序不动）
+            group_ids = {id(p) for p in plans}
+            idx = next(
+                i for i, p in enumerate(final_plan) if id(p) in group_ids
+            )
+            rest = [p for p in final_plan if id(p) not in group_ids]
+            final_plan.clear()
+            final_plan.extend(rest[:idx] + sub + rest[idx:])
+            # 受影响子组统计同步（总汇总按 by_type_stats 累加，必须一致）
+            for internal_order in info['orders']:
+                st = by_type_stats.get(f"{pallet_type}__{internal_order}")
+                if not st:
+                    continue
+                plans_o = [
+                    p for p in sub
+                    if p.get('sales_order_no') == internal_order
+                ]
+                st.update(PalletEvaluator.recompute_type_stats(plans_o))
+                diag_d = st.get('diagnosis')
+                if isinstance(diag_d, dict):
+                    fills = [
+                        float(p.get('fill_rate') or 0.0)
+                        for p in plans_o if p.get('packed_items')
+                    ]
+                    low = [
+                        p for p in plans_o
+                        if p.get('mpm_status') == 'FAILED'
+                        and float(p.get('fill_rate') or 0.0) < 0.3
+                    ]
+                    diag_d['low_fill_failed_pallets'] = len(low)
+                    diag_d['algorithm_underfilled_order'] = bool(low)
+                    diag_d['avg_fill_rate'] = round(
+                        sum(fills) / max(1, len(fills)), 6
+                    )
+
+    def _restore_split_orders(self, final_plan: List[Dict], by_type_stats: Dict) -> None:
+        """输出前统一盘号与订单号：还原内部订单后缀（组内子聚类
+        __SPLITREST__ / case_group 分组标签），case_group 写回盘级字段；
+        盘号**无条件**按 (托盘类型, 订单) 顺序重编为 `类型-订单-序号`——
+        救援阶段的临时号（如 -RC1）与合并/丢盘产生的断号一律归一，
+        保证所有报告的 pallet_id 格式一致且组内连续。"""
+        def _tagged(order: str) -> bool:
+            return _SPLIT_REST_TAG in order or CASE_GROUP_ORDER_TAG in order
+
+        if any(_tagged(p.get('sales_order_no') or '') for p in final_plan):
+            for p in final_plan:
+                o = (p.get('sales_order_no') or '').replace(_SPLIT_REST_TAG, '')
+                clean, cg = split_case_group_tag(o)
+                if cg:
+                    p['case_group'] = cg
+                p['sales_order_no'] = clean
+            for st in by_type_stats.values():
+                o = (st.get('sales_order_no') or '').replace(_SPLIT_REST_TAG, '')
+                clean, cg = split_case_group_tag(o)
+                if cg:
+                    st['case_group'] = cg
+                st['sales_order_no'] = clean
         seq: Dict = {}
         for p in final_plan:
             k = (p.get('pallet_type'), p.get('sales_order_no'))
             seq[k] = seq.get(k, 0) + 1
             p['pallet_id'] = f"{k[0]}-{k[1]}-{seq[k]}"
-        for st in by_type_stats.values():
-            o = st.get('sales_order_no') or ''
-            if _SPLIT_REST_TAG in o:
-                st['sales_order_no'] = o.replace(_SPLIT_REST_TAG, '')
+
+    def _call_rescue_optimizer(
+        self, type_plan: List[Dict], target_mpm: Optional[float],
+        pallet_dims: Optional[Dict],
+    ) -> Dict:
+        """互借修复调用：显式传托盘尺寸（与其它救援器同源），兼容旧签名注入。
+
+        未合并时打印原因行，避免静默失败难排查。
+        """
+        fn = self._rescue_optimizer.optimize_failed_by_failed
+        try:
+            supports_dims = 'pallet_dims' in inspect.signature(fn).parameters
+        except (TypeError, ValueError):
+            supports_dims = False
+        diag = (
+            fn(type_plan, target_mpm, pallet_dims=pallet_dims)
+            if supports_dims else fn(type_plan, target_mpm)
+        ) or {}
+        reason = diag.get("consolidate_reason", "")
+        if reason and reason != "ok":
+            print(f"  - 失败托盘互借诊断：未合并（{reason}）。")
+        r_reason = diag.get("redistribute_reason", "")
+        if r_reason and r_reason not in ("ok", "no_failed_pool",
+                                         "no_low_fill_success_donor"):
+            print(f"  - 指数再分配诊断：未接受（{r_reason}）。")
+        return diag
 
     def _drop_empty_pallets(self, type_plan: List[Dict]) -> int:
         before = len(type_plan)

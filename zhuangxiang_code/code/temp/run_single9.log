@@ -1,0 +1,66 @@
+已加载约束配置：temp/cfg_single.yaml
+load D:\anaconda3\install\lib\site-packages\ortools\.libs\zlib1.dll...
+load D:\anaconda3\install\lib\site-packages\ortools\.libs\abseil_dll.dll...
+load D:\anaconda3\install\lib\site-packages\ortools\.libs\utf8_validity.dll...
+load D:\anaconda3\install\lib\site-packages\ortools\.libs\re2.dll...
+load D:\anaconda3\install\lib\site-packages\ortools\.libs\libprotobuf.dll...
+load D:\anaconda3\install\lib\site-packages\ortools\.libs\highs.dll...
+load D:\anaconda3\install\lib\site-packages\ortools\.libs\ortools.dll...
+已加载配置数据集：E:\yue's project\maduo\zhuangxiang_code\data\多条件筛选随机挑选 5000 个箱子最终结果(单托盘).xlsx
+检测到小箱子体积阈值: 22260000.00 mm^3
+小箱子数量: 235，非小箱子数量: 4765
+数据预处理和箱子分组完成（按托盘类型+销售订单号）。
+----------------------------------------
+  - 组内子聚类：1 个混合订单拆出规则子集走 GCP、杂箱走 baseline。
+正在处理托盘类型：MH423C，销售订单号：PAIN25450MN01S
+  - 该分组不适合列式（多非满柱）→ 回退 beam + 配方优先。
+  - 配方优先[fast]：规划 84 实例，实装成功 78，失败回兜底 6；达标 80，直接采用配方方案（基线未跑，--safe 可审计对比）。
+  - 指数诊断：箱子 2720 个，总指数 18255，目标 192，理论最多达标托盘 95 个，剩余指数 15。
+  - 几何诊断：典型整层堆叠单盘参考上限 238/192。
+  - 失败托盘互借修复（凑标提交）：新增达标 1，受影响 7 盘重排为 7 盘（其余失败盘未动），耗时 13.8s。
+  - 失败盘装满压实：合并/吸收 1 次（纯减盘数）。
+  - 失败托盘互借诊断：未合并（aborted_no_improvement_possible）。
+  - 指数再分配诊断：未接受（extraction_below_baseline）。
+托盘类型 MH423C（销售订单号：PAIN25450MN01S）处理完成：总托盘 99，指数达标 81，未达标 18，平均缺口 43.89，最大缺口 128.00，失败托盘互借修复成功 1。
+  - KPI：near/mid/deep=0/3/15，救回率=5.56%，pair效率=0.00%。
+  - 耗时拆解：packing=56.97s，main_topup=1.56s，retry=6.39s，failed_pool=1.06s，repack=91.03s，total=156.09s。
+
+正在处理托盘类型：MH423C，销售订单号：PAIN25450MZ06S
+  - 主算法：全局列式装箱 + 柱级组合优化（GCP）。
+  - 失败托盘互借诊断：未合并（less_than_2_consolidatable）。
+托盘类型 MH423C（销售订单号：PAIN25450MZ06S）处理完成：总托盘 56，指数达标 55，未达标 1，平均缺口 121.00，最大缺口 121.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/0/1，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=2.19s，main_topup=0.00s，retry=0.00s，failed_pool=0.00s，repack=0.00s，total=2.20s。
+
+正在处理托盘类型：MH423C，销售订单号：PAIN25450MZ06S__SPLITREST__
+  - 该分组不适合列式（多非满柱）→ 回退 beam + 配方优先。
+  - 配方优先[fast]：规划 0 实例，实装成功 0，配方路径不可用 → 采用基线方案。
+  - 指数诊断：箱子 97 个，总指数 716，目标 192，理论最多达标托盘 3 个，剩余指数 140。
+  - 几何诊断：典型整层堆叠单盘参考上限 108/192。 当前目标可能受托盘高度/箱型组合限制。
+  - 几何不可达标记：典型整层上限 108 < 目标 192，救援优先压缩托盘数和填充率。
+  - 失败托盘互借诊断：未合并（aborted_no_improvement_possible）。
+托盘类型 MH423C（销售订单号：PAIN25450MZ06S__SPLITREST__）处理完成：总托盘 6，指数达标 0，未达标 6，平均缺口 72.67，最大缺口 136.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/0/6，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=0.93s，main_topup=0.01s，retry=0.00s，failed_pool=0.00s，repack=1.73s，total=2.67s。
+
+正在处理托盘类型：MH423C，销售订单号：PAIN25460MN01S
+  - 该分组不适合列式（多非满柱）→ 回退 beam + 配方优先。
+  - 配方优先[fast]：规划 7 实例，实装成功 7，失败回兜底 0；达标 8，直接采用配方方案（基线未跑，--safe 可审计对比）。
+  - 指数诊断：箱子 290 个，总指数 1955，目标 192，理论最多达标托盘 10 个，剩余指数 35。
+  - 几何诊断：典型整层堆叠单盘参考上限 192/192。
+  - 失败托盘互借诊断：未合并（aborted_no_improvement_possible）。
+托盘类型 MH423C（销售订单号：PAIN25460MN01S）处理完成：总托盘 12，指数达标 8，未达标 4，平均缺口 87.25，最大缺口 154.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/0/4，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=3.94s，main_topup=0.03s，retry=0.00s，failed_pool=4.68s，repack=12.34s，total=16.33s。
+
+========================================
+统计汇总：总托盘 173，指数达标 144，未达标 29，未知 0，平均缺口 58.48，最大缺口 154.00，失败托盘互借修复成功 1
+KPI汇总：near/mid/deep=0/3/26，pair尝试=0，pair改进=0，pair效率=0.00%
+耗时汇总：packing=64.03s，main_topup=1.60s，retry=6.39s，repack=105.11s，end_to_end=191.45s
+========================================
+========================================
+最终装箱方案已保存至：E:\yue's project\maduo\zhuangxiang_code\output\packing_plan_20260711_190438.json
+托盘统计Excel已保存至：E:\yue's project\maduo\zhuangxiang_code\output\packing_plan_summary_20260711_190438.xlsx
+========================================
+算法总运行时间：191.45 秒
+========================================

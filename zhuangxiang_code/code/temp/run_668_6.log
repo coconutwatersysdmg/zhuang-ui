@@ -1,0 +1,31 @@
+已加载约束配置：temp/cfg_668.yaml
+load D:\anaconda3\install\lib\site-packages\ortools\.libs\zlib1.dll...
+load D:\anaconda3\install\lib\site-packages\ortools\.libs\abseil_dll.dll...
+load D:\anaconda3\install\lib\site-packages\ortools\.libs\utf8_validity.dll...
+load D:\anaconda3\install\lib\site-packages\ortools\.libs\re2.dll...
+load D:\anaconda3\install\lib\site-packages\ortools\.libs\libprotobuf.dll...
+load D:\anaconda3\install\lib\site-packages\ortools\.libs\highs.dll...
+load D:\anaconda3\install\lib\site-packages\ortools\.libs\ortools.dll...
+已加载配置数据集：E:\yue's project\maduo\zhuangxiang_code\data\668箱子数据集.xlsx
+检测到小箱子体积阈值: 11130000.00 mm^3
+小箱子数量: 0，非小箱子数量: 668
+数据预处理和箱子分组完成（按托盘类型+销售订单号）。
+----------------------------------------
+正在处理托盘类型：MH423C，销售订单号：ANALYSIS_001
+  - 主算法：全局列式装箱 + 柱级组合优化（GCP）。
+  - 失败托盘互借诊断：未合并（aborted_no_improvement_possible）。
+托盘类型 MH423C（销售订单号：ANALYSIS_001）处理完成：总托盘 12，指数达标 10，未达标 2，平均缺口 96.00，最大缺口 158.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/0/2，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=5.98s，main_topup=0.00s，retry=0.00s，failed_pool=0.00s，repack=8.57s，total=14.56s。
+
+========================================
+统计汇总：总托盘 12，指数达标 10，未达标 2，未知 0，平均缺口 96.00，最大缺口 158.00，失败托盘互借修复成功 0
+KPI汇总：near/mid/deep=0/0/2，pair尝试=0，pair改进=0，pair效率=0.00%
+耗时汇总：packing=5.98s，main_topup=0.00s，retry=0.00s，repack=8.57s，end_to_end=23.13s
+========================================
+========================================
+最终装箱方案已保存至：E:\yue's project\maduo\zhuangxiang_code\output\packing_plan_20260711_184027.json
+托盘统计Excel已保存至：E:\yue's project\maduo\zhuangxiang_code\output\packing_plan_summary_20260711_184027.xlsx
+========================================
+算法总运行时间：23.13 秒
+========================================
