@@ -177,6 +177,22 @@ class WcsPlanResult:
     #   box_unique_id 不能多次下发——去重责任在服务壳。
 
 
+def _normalize_product_code(value) -> int:
+    """接口 2 要求 product_code 为 int；Mock 可能给 "PROD005" 等非数字字符串。"""
+    if value is None or value == '':
+        return 0
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    try:
+        return int(str(value).strip())
+    except ValueError:
+        return 0
+
+
 def _case_sort_key(pallet: Dict, orig_idx: int) -> Tuple:
     """case 输出排序：priority 升序（数值小=优先，TODO §8-3 方向待确认）
     → 订单号 → 原盘序（保持算法输出内的相对顺序）。"""
@@ -231,9 +247,8 @@ def _build_layers(items: List[Dict]) -> Tuple[List[Dict], float]:
             'height': h,
             'layer_id': lid,
             'seq': seq,
-            # TODO: 本地 Excel 数据无 product_code（接口库存有）；缺失按 0，
-            # 联调前确认 WCS 是否接受 0 或需保证必有值。
-            'product_code': int(it.get('product_code') or 0),
+            # 接口文档要求 int；非数字字符串（如 Mock 的 "PROD005"）回退 0。
+            'product_code': _normalize_product_code(it.get('product_code')),
         })
     layers = [{'cartons': by_layer[lid]} for lid in sorted(by_layer)]
     return layers, total_height
