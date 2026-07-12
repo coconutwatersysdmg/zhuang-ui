@@ -555,7 +555,7 @@ class IndustrialPackingWorkbenchClean(IndustrialPackingWorkbench):
         self.generated_out_path: Optional[Path] = None
         self.last_excel_mode: Optional[str] = None
         #TODO 数据源按钮，True为用户自主选择excel数据，False为后端向接口请求数据
-        self.use_manual_excel_input = False
+        self.use_manual_excel_input = True
         self._api_service_active = False
         self._history_refreshing = False
         self._current_result_path: Optional[Path] = None
