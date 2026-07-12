@@ -45,11 +45,13 @@ _PRIORITY_LAST = 10 ** 9
 
 
 def build_stock_request(msgtime: Optional[str] = None) -> Dict:
-    """构造接口 1（库存信息获取）请求体 ``{msgtime, msgid}``。
+    # TODO 接口1请求体构造
+    # 示例（POST /adaptor/api/wcs/reqstockinfo）:
+    # {
+    #   "msgtime": "2026年7月12日15:36:13",
+    #   "msgid": "a1b2c3d4e5f6789012345678abcdef01"
+    # }
 
-    TODO: msgtime 格式接口示例为中文日期（"2026年3月19日23:11:19"），
-    是否严格要求该格式待现场联调确认；msgid 为 32 字符唯一码（uuid4.hex）。
-    """
     if msgtime is None:
         msgtime = datetime.now().strftime('%Y年%m月%d日%H:%M:%S')
     return {'msgtime': msgtime, 'msgid': uuid.uuid4().hex}
@@ -258,6 +260,40 @@ def report_to_plan_result(
     report: Optional[Dict],
     include_failed: bool = True,
 ) -> WcsPlanResult:
+    # TODO 接口2请求体构造
+    # 示例（POST /adaptor/api/wcs/sendpalletplanresult，请求体为 JSON 数组）:
+    # [
+    #   {
+    #     "box_index": 1,
+    #     "box_unique_id": "ee1b1286a6f04840a4eabe79f715c4b4",
+    #     "total_height": 720.0,
+    #     "order_id": "LAID15455BN01S",
+    #     "case_group": "0",
+    #     "case_type": "MH423C",
+    #     "layers": [
+    #       {
+    #         "cartons": [
+    #           {
+    #             "length": 350.0,
+    #             "width": 265.0,
+    #             "height": 240.0,
+    #             "layer_id": 1,
+    #             "seq": 1,
+    #             "product_code": 10791358
+    #           },
+    #           {
+    #             "length": 350.0,
+    #             "width": 265.0,
+    #             "height": 240.0,
+    #             "layer_id": 1,
+    #             "seq": 2,
+    #             "product_code": 10791358
+    #           }
+    #         ]
+    #       }
+    #     ]
+    #   }
+    # ]
     """算法装箱报告（``run_with_boxes`` 返回值）→ 接口 2 发送体。
 
     Args:

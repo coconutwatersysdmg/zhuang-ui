@@ -175,7 +175,6 @@ def _write_ui_config(project_dir: Path, base_config_path: Path, excel_copy_path:
 
 
 def _write_ui_config_api_only(project_dir: Path, base_config_path: Path) -> Path:
-    # TODO(接口地址): 优先改 code/config/packing_config.yaml → data_source.api_base_url
     config = _load_yaml(base_config_path)
     base_excel = (config.get("excel_data") or {}).get("source_file")
     bms_ref = (config.get("data_source") or {}).get("bms_reference_file") or base_excel or "668箱子数据集.xlsx"
@@ -588,7 +587,6 @@ class IndustrialPackingWorkbenchClean(IndustrialPackingWorkbench):
         self.status_pill.setToolTip("当前运行状态：空闲 / 运行中 / 已完成 / 失败")
         layout.addWidget(self.status_pill)
 
-        # TODO: 关闭「输入数据」后，改为后端每 200s 向接口请求输入数据，不再由用户选择 Excel。
         self.chk_manual_input = QtWidgets.QCheckBox("输入数据")
         self.chk_manual_input.setChecked(True)
         self.chk_manual_input.toggled.connect(self._on_manual_input_toggled)

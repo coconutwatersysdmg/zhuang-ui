@@ -38,7 +38,9 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 _CODE_ROOT = Path(__file__).resolve().parents[2]
 
 # TODO 输入输出地址
+# 接口1
 WCS_STOCK_PATH = "/adaptor/api/wcs/reqstockinfo"
+# 接口2
 WCS_PLAN_PATH = "/adaptor/api/wcs/sendpalletplanresult"
 
 _DEFAULT_DATA_SOURCE = {
@@ -89,7 +91,7 @@ def fetch_stock_response(base_url: str, timeout: int = 30) -> Dict:
     """POST 接口 1，返回完整响应体 {code, msg, data}。"""
     url = f"{base_url.rstrip('/')}{WCS_STOCK_PATH}"
     resp = requests.post(
-        url,
+        url,    
         json=build_stock_request(),
         timeout=timeout,
         verify=False,
