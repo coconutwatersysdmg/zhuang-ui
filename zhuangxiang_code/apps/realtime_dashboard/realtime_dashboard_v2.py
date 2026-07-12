@@ -951,14 +951,12 @@ class IndustrialPackingWorkbench(BaseDashboard):
         layout.setContentsMargins(14, 14, 10, 14)
         layout.setSpacing(10)
 
-        self.step_data = StepCard("1", "数据输入", "选择 Excel 后点击一键装箱")
-        layout.addWidget(self.step_data)
         self.file_info = QtWidgets.QLabel("尚未加载结果文件")
         self.file_info.setObjectName("SmallInfo")
         self.file_info.setWordWrap(True)
         layout.addWidget(self.file_info)
 
-        self.step_run = StepCard("2", "运行状态", "等待开始")
+        self.step_run = StepCard("1", "运行状态", "等待开始")
         layout.addWidget(self.step_run)
         self.run_progress = QtWidgets.QProgressBar()
         self.run_progress.setRange(0, 100)
@@ -967,7 +965,7 @@ class IndustrialPackingWorkbench(BaseDashboard):
         self.run_progress.setFormat("等待开始")
         layout.addWidget(self.run_progress)
 
-        self.step_result = StepCard("3", "筛选托盘", "中间区域每页显示 6 个三维托盘")
+        self.step_result = StepCard("2", "筛选托盘", "中间区域每页显示 6 个三维托盘")
         layout.addWidget(self.step_result)
         filter_box = QtWidgets.QFrame()
         filter_box.setObjectName("ParamBox")
@@ -1025,7 +1023,7 @@ class IndustrialPackingWorkbench(BaseDashboard):
         grid.addWidget(self.card_avg_fill, 2, 0, 1, 2)
         layout.addWidget(overview_box)
 
-        self.step_params = StepCard("4", "高级参数", "默认收起，不建议频繁修改")
+        self.step_params = StepCard("3", "高级参数", "默认收起，不建议频繁修改")
         layout.addWidget(self.step_params)
         self.btn_toggle_params = QtWidgets.QToolButton()
         self.btn_toggle_params.setText("展开高级参数")
@@ -2190,7 +2188,6 @@ class IndustrialPackingWorkbench(BaseDashboard):
             return
         self.project_dir = Path(path).resolve()
         self.config_path = self.project_dir / DEFAULT_CONFIG_REL
-        self.step_data.set_state("done", f"算法目录：{self.project_dir.name}")
         self._write_log(f"[UI] 已切换算法目录：{self.project_dir}")
         self._write_log(f"[UI] 默认配置：{self.config_path}")
 
@@ -2202,7 +2199,6 @@ class IndustrialPackingWorkbench(BaseDashboard):
         if not path:
             return
         self.config_path = Path(path).resolve()
-        self.step_data.set_state("done", f"配置：{self.config_path.name}")
         self._write_log(f"[UI] 已选择配置：{self.config_path}")
 
     def start_backend_packing(self) -> None:
@@ -2302,7 +2298,6 @@ class IndustrialPackingWorkbench(BaseDashboard):
 
     def populate_after_load(self) -> None:
         super().populate_after_load()
-        self.step_data.set_state("done", "已加载装箱结果")
         self.step_result.set_state("done", "可以选择托盘查看详情")
         if hasattr(self, "card_avg_fill"):
             vals = [safe_float(p.get("fill_rate"), float("nan")) for p in getattr(self, "pallets", [])]

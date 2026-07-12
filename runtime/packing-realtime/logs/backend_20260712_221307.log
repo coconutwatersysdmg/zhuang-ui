@@ -1,0 +1,119 @@
+[LOG] 后端日志文件：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\runtime\packing-realtime\logs\backend_20260712_221307.log
+[LOG] 接口模式：后端将每 200 秒拉取接口并自动装箱，直到点击停止。
+[CMD] E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\.venvs\packing-realtime\Scripts\python.exe E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\code\run_wcs_service.py --config E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\runtime\packing-realtime\temp\ui_config_api_20260712_221307.yaml
+[WCS] 已加载 BMS 参考表：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\data\selected_5000_boxes_9_1_concentrated_3orders.xlsx
+============================================================
+WCS 接口装箱服务（常驻模式）
+  接口地址：https://3c3758c8-755a-499e-b580-76afda706e5e.mock.pstmn.io
+  拉取间隔：200 秒
+  库存目录：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\code\input
+  输出目录：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\output
+  BMS 参考：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\data\selected_5000_boxes_9_1_concentrated_3orders.xlsx
+  约束配置：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\runtime\packing-realtime\temp\ui_config_api_20260712_221307.yaml
+  按 Ctrl+C 或由 UI 停止按钮结束进程
+============================================================
+[WCS] 已加载 BMS 参考表：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\data\selected_5000_boxes_9_1_concentrated_3orders.xlsx
+============================================================
+[WCS] 第 20260712_221316 轮：拉取接口 1 …
+[WCS] 接口 1 原始响应已保存：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\code\input\20260712_221316.json
+[WCS] 库存品类数：32
+[WCS] 展开为 623 个箱子。
+load E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\zlib1.dll...
+load E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\abseil_dll.dll...
+load E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\utf8_validity.dll...
+load E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\re2.dll...
+load E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\libprotobuf.dll...
+load E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\highs.dll...
+load E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\.venvs\packing-realtime\Lib\site-packages\ortools\.libs\ortools.dll...
+数据预处理和箱子分组完成（按托盘类型+销售订单号）。
+----------------------------------------
+正在处理托盘类型：MH423C，销售订单号：PAIN25450MN01S
+  - 该分组不适合列式（多非满柱）→ 回退 beam + 配方优先。
+  - 配方优先[fast]：规划 7 实例，实装成功 7，失败回兜底 0；达标 7，直接采用配方方案（基线未跑，--safe 可审计对比）。
+  - 指数诊断：箱子 553 个，总指数 3794，目标 192，理论最多达标托盘 19 个，剩余指数 146。
+  - 几何诊断：典型整层堆叠单盘参考上限 192/192。
+  - 失败托盘互借诊断：未合并（aborted_no_improvement_possible）。
+托盘类型 MH423C（销售订单号：PAIN25450MN01S）处理完成：总托盘 24，指数达标 7，未达标 17，平均缺口 47.88，最大缺口 168.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/1/16，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=5.74s，main_topup=0.19s，retry=0.00s，failed_pool=1.17s，repack=35.27s，total=41.21s。
+正在处理托盘类型：MH423C，销售订单号：PAIN25450MZ06S
+  - 该分组不适合列式（多非满柱）→ 回退 beam + 配方优先。
+  - 配方优先[fast]：规划 0 实例，实装成功 0，配方路径不可用 → 采用基线方案。
+  - 指数诊断：箱子 23 个，总指数 297，目标 192，理论最多达标托盘 1 个，剩余指数 105。
+  - 几何诊断：典型整层堆叠单盘参考上限 121/192。 当前目标可能受托盘高度/箱型组合限制。
+  - 几何不可达标记：典型整层上限 121 < 目标 192，救援优先压缩托盘数和填充率。
+  - 失败盘装满压实：合并/吸收 1 次（纯减盘数）。
+  - 失败托盘互借诊断：未合并（aborted_no_improvement_possible）。
+托盘类型 MH423C（销售订单号：PAIN25450MZ06S）处理完成：总托盘 2，指数达标 0，未达标 2，平均缺口 43.50，最大缺口 67.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/1/1，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=0.06s，main_topup=0.00s，retry=0.00s，failed_pool=0.00s，repack=0.33s，total=0.39s。
+正在处理托盘类型：MH423C，销售订单号：PAIN25460MN01S
+  - 该分组不适合列式（多非满柱）→ 回退 beam + 配方优先。
+  - 配方优先[fast]：规划 1 实例，实装成功 1，失败回兜底 0；达标 1，直接采用配方方案（基线未跑，--safe 可审计对比）。
+  - 指数诊断：箱子 47 个，总指数 398，目标 192，理论最多达标托盘 2 个，剩余指数 14。
+  - 几何诊断：典型整层堆叠单盘参考上限 176/192。 当前目标可能受托盘高度/箱型组合限制。
+  - 几何不可达标记：典型整层上限 176 < 目标 192，救援优先压缩托盘数和填充率。
+  - 失败托盘互借诊断：未合并（aborted_no_improvement_possible）。
+托盘类型 MH423C（销售订单号：PAIN25460MN01S）处理完成：总托盘 3，指数达标 1，未达标 2，平均缺口 89.00，最大缺口 150.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/0/2，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=0.17s，main_topup=0.00s，retry=0.00s，failed_pool=0.00s，repack=0.21s，total=0.39s。
+========================================
+统计汇总：总托盘 29，指数达标 8，未达标 21，未知 0，平均缺口 51.38，最大缺口 168.00，失败托盘互借修复成功 0
+KPI汇总：near/mid/deep=0/2/19，pair尝试=0，pair改进=0，pair效率=0.00%
+耗时汇总：packing=5.97s，main_topup=0.19s，retry=0.00s，repack=35.81s，end_to_end=42.00s
+========================================
+[WCS] 装箱报告已保存：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\output\packing_plan_20260712_221316.json
+[WCS] 接口 2 发送体已保存：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\output\wcs_plan_20260712_221316.json（29 个 case）
+[WCS] 接口 2 推送成功：code=0, msg=ok
+[WCS] box_unique_id 映射已保存：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\output\wcs_plan_map_20260712_221316.json
+[UI-RESULT] E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\output\packing_plan_20260712_221316.json
+[WCS] 等待 200 秒后下一轮 …
+[WCS] 已加载 BMS 参考表：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\data\selected_5000_boxes_9_1_concentrated_3orders.xlsx
+============================================================
+[WCS] 第 20260712_221730 轮：拉取接口 1 …
+[WCS] 接口 1 原始响应已保存：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\code\input\20260712_221730.json
+[WCS] 库存品类数：32
+[WCS] 展开为 623 个箱子。
+数据预处理和箱子分组完成（按托盘类型+销售订单号）。
+----------------------------------------
+正在处理托盘类型：MH423C，销售订单号：PAIN25450MN01S
+  - 该分组不适合列式（多非满柱）→ 回退 beam + 配方优先。
+  - 配方优先[fast]：规划 7 实例，实装成功 7，失败回兜底 0；达标 7，直接采用配方方案（基线未跑，--safe 可审计对比）。
+  - 指数诊断：箱子 553 个，总指数 3794，目标 192，理论最多达标托盘 19 个，剩余指数 146。
+  - 几何诊断：典型整层堆叠单盘参考上限 192/192。
+  - 失败托盘互借诊断：未合并（aborted_no_improvement_possible）。
+托盘类型 MH423C（销售订单号：PAIN25450MN01S）处理完成：总托盘 24，指数达标 7，未达标 17，平均缺口 47.88，最大缺口 168.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/1/16，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=8.28s，main_topup=0.26s，retry=0.00s，failed_pool=1.59s，repack=40.32s，total=48.89s。
+正在处理托盘类型：MH423C，销售订单号：PAIN25450MZ06S
+  - 该分组不适合列式（多非满柱）→ 回退 beam + 配方优先。
+  - 配方优先[fast]：规划 0 实例，实装成功 0，配方路径不可用 → 采用基线方案。
+  - 指数诊断：箱子 23 个，总指数 297，目标 192，理论最多达标托盘 1 个，剩余指数 105。
+  - 几何诊断：典型整层堆叠单盘参考上限 121/192。 当前目标可能受托盘高度/箱型组合限制。
+  - 几何不可达标记：典型整层上限 121 < 目标 192，救援优先压缩托盘数和填充率。
+  - 失败盘装满压实：合并/吸收 1 次（纯减盘数）。
+  - 失败托盘互借诊断：未合并（aborted_no_improvement_possible）。
+托盘类型 MH423C（销售订单号：PAIN25450MZ06S）处理完成：总托盘 2，指数达标 0，未达标 2，平均缺口 43.50，最大缺口 67.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/1/1，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=0.06s，main_topup=0.00s，retry=0.00s，failed_pool=0.00s，repack=0.30s，total=0.36s。
+正在处理托盘类型：MH423C，销售订单号：PAIN25460MN01S
+  - 该分组不适合列式（多非满柱）→ 回退 beam + 配方优先。
+  - 配方优先[fast]：规划 1 实例，实装成功 1，失败回兜底 0；达标 1，直接采用配方方案（基线未跑，--safe 可审计对比）。
+  - 指数诊断：箱子 47 个，总指数 398，目标 192，理论最多达标托盘 2 个，剩余指数 14。
+  - 几何诊断：典型整层堆叠单盘参考上限 176/192。 当前目标可能受托盘高度/箱型组合限制。
+  - 几何不可达标记：典型整层上限 176 < 目标 192，救援优先压缩托盘数和填充率。
+  - 失败托盘互借诊断：未合并（aborted_no_improvement_possible）。
+托盘类型 MH423C（销售订单号：PAIN25460MN01S）处理完成：总托盘 3，指数达标 1，未达标 2，平均缺口 89.00，最大缺口 150.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/0/2，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=0.18s，main_topup=0.00s，retry=0.00s，failed_pool=0.00s，repack=0.22s，total=0.40s。
+========================================
+统计汇总：总托盘 29，指数达标 8，未达标 21，未知 0，平均缺口 51.38，最大缺口 168.00，失败托盘互借修复成功 0
+KPI汇总：near/mid/deep=0/2/19，pair尝试=0，pair改进=0，pair效率=0.00%
+耗时汇总：packing=8.51s，main_topup=0.26s，retry=0.00s，repack=40.84s，end_to_end=49.65s
+========================================
+[WCS] 装箱报告已保存：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\output\packing_plan_20260712_221730.json
+[WCS] 接口 2 发送体已保存：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\output\wcs_plan_20260712_221730.json（29 个 case）
+[WCS] 接口 2 推送成功：code=0, msg=ok
+[WCS] box_unique_id 映射已保存：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\output\wcs_plan_map_20260712_221730.json
+[UI-RESULT] E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\output\packing_plan_20260712_221730.json
+[WCS] 等待 200 秒后下一轮 …

@@ -554,8 +554,8 @@ class IndustrialPackingWorkbenchClean(IndustrialPackingWorkbench):
         self.generated_config_path: Optional[Path] = None
         self.generated_out_path: Optional[Path] = None
         self.last_excel_mode: Optional[str] = None
-        #TODO 数据源按钮，True为用户自主选择excel数据，False为后端向接口请求数据
-        self.use_manual_excel_input = True
+        # 数据源：use_api_mode=True → 接口模式；False → 本地 Excel
+        self.use_api_mode = False
         self._api_service_active = False
         self._history_refreshing = False
         self._current_result_path: Optional[Path] = None
@@ -587,10 +587,11 @@ class IndustrialPackingWorkbenchClean(IndustrialPackingWorkbench):
         self.status_pill.setToolTip("当前运行状态：空闲 / 运行中 / 已完成 / 失败")
         layout.addWidget(self.status_pill)
 
-        self.chk_manual_input = QtWidgets.QCheckBox("输入数据")
-        self.chk_manual_input.setChecked(True)
-        self.chk_manual_input.toggled.connect(self._on_manual_input_toggled)
-        layout.addWidget(self.chk_manual_input)
+        self.chk_api_mode = QtWidgets.QCheckBox("接口模式")
+        self.chk_api_mode.setChecked(False)
+        self.chk_api_mode.setToolTip("勾选：从 WCS 接口拉库存并装箱（常驻服务）\n不勾选：使用本地 Excel 文件")
+        self.chk_api_mode.toggled.connect(self._on_api_mode_toggled)
+        layout.addWidget(self.chk_api_mode)
 
         self.btn_excel = QtWidgets.QPushButton("选择Excel")
         self.btn_excel.setObjectName("GhostButton")
@@ -600,7 +601,10 @@ class IndustrialPackingWorkbenchClean(IndustrialPackingWorkbench):
 
         self.btn_excel_run = QtWidgets.QPushButton("一键装箱")
         self.btn_excel_run.setObjectName("PrimaryButton")
-        self.btn_excel_run.setToolTip("主流程：使用已选择的 Excel 运行算法，完成后自动显示最终结果。")
+        self.btn_excel_run.setToolTip(
+            "接口模式：启动常驻服务，每 200 秒拉取库存并装箱。\n"
+            "Excel 模式：使用已选择的 Excel 运行一次装箱。"
+        )
         self.btn_excel_run.clicked.connect(self.start_excel_packing)
         layout.addWidget(self.btn_excel_run)
 
@@ -656,8 +660,8 @@ class IndustrialPackingWorkbenchClean(IndustrialPackingWorkbench):
 
         return header
 
-    def _on_manual_input_toggled(self, checked: bool) -> None:
-        self.use_manual_excel_input = checked
+    def _on_api_mode_toggled(self, checked: bool) -> None:
+        self.use_api_mode = checked
 
     def _write_log(self, text: str) -> None:
         """界面日志与 VSCode 终端同步输出，便于开发调试。"""
@@ -830,7 +834,6 @@ class IndustrialPackingWorkbenchClean(IndustrialPackingWorkbench):
             self.config_path = cfg
             self.last_excel_mode = run_mode
 
-            self.step_data.set_state("done", f"Excel：{original.name} | 模式：{run_mode}")
             self._write_log(f"[UI] 已选择 Excel：{original}")
             self._write_log(f"[UI] 已复制到项目数据目录：{copied}")
             self._write_log(f"[UI] 检测到工作表：{', '.join(sheets)}")
@@ -844,7 +847,13 @@ class IndustrialPackingWorkbenchClean(IndustrialPackingWorkbench):
             return None
 
     def start_excel_packing(self) -> None:
-        if self.use_manual_excel_input:
+        if self.use_api_mode:
+            cfg = _write_ui_config_api_only(self.project_dir, self.project_dir / DEFAULT_CONFIG_REL)
+            self.generated_config_path = cfg
+            self.config_path = cfg
+            self._write_log(f"[UI] 接口模式：已生成临时配置 {cfg}")
+            self._write_log("[UI] 将启动常驻接口服务（每 200 秒拉取一次），点击停止结束。")
+        else:
             # 已经通过“选择Excel”选过文件时，直接运行；没有选过时再弹出选择框。
             if self.generated_config_path is None or self.selected_excel_copy is None:
                 cfg = self.choose_excel_file()
@@ -853,13 +862,7 @@ class IndustrialPackingWorkbenchClean(IndustrialPackingWorkbench):
             else:
                 self.config_path = self.generated_config_path
                 self._write_log(f"[UI] 使用已选择 Excel：{self.selected_excel_original}")
-        else:
-            cfg = _write_ui_config_api_only(self.project_dir, self.project_dir / DEFAULT_CONFIG_REL)
-            self.generated_config_path = cfg
-            self.config_path = cfg
-            self._write_log(f"[UI] 接口模式：已生成临时配置 {cfg}")
-            self._write_log("[UI] 将启动常驻接口服务（每 200 秒拉取一次），点击停止结束。")
-        self.start_backend_packing(api_mode=not self.use_manual_excel_input)
+        self.start_backend_packing(api_mode=self.use_api_mode)
 
     # ------------------------------------------------------------------ backend
     def start_backend_packing(self, api_mode: bool = False) -> None:
