@@ -1,0 +1,31 @@
+[LOG] 后端日志文件：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\runtime\packing-realtime\logs\backend_20260717_213322.log
+[LOG] 本次结果将输出到：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\runtime\packing-realtime\exports\ui_packing_plan_20260717_213322.json
+[CMD] D:\ProgramData\anaconda3\python.exe E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\code\run_packing.py --config E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\runtime\packing-realtime\temp\ui_config_normal_20260717_213321.yaml --out E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\runtime\packing-realtime\exports\ui_packing_plan_20260717_213322.json
+已加载约束配置：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\runtime\packing-realtime\temp\ui_config_normal_20260717_213321.yaml
+已加载配置数据集：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\data\ui_inputs\20260717_213321_668.xlsx
+检测到小箱子体积阈值: 11130000.00 mm^3
+小箱子数量: 0，非小箱子数量: 668
+数据预处理和箱子分组完成（按托盘类型+销售订单号）。
+----------------------------------------
+正在处理托盘类型：MH423C，销售订单号：ANALYSIS_001
+  - 主算法：全局列式装箱 + 柱级组合优化（GCP）。
+  - GCP 盘数远超理论（CP-SAT 装不满）→ 回退 baseline beam + 配方优先。
+  - 配方优先[fast]：规划 8 实例，实装成功 8，失败回兜底 0；达标 10，直接采用配方方案（基线未跑，--safe 可审计对比）。
+  - 指数诊断：箱子 668 个，总指数 2112，目标 192，理论最多达标托盘 11 个，剩余指数 0。
+  - 几何诊断：典型整层堆叠单盘参考上限 192/192。
+  - 失败托盘互借诊断：未合并（aborted_no_improvement_possible）。
+托盘类型 MH423C（销售订单号：ANALYSIS_001）处理完成：总托盘 12，指数达标 10，未达标 2，平均缺口 96.00，最大缺口 144.00，失败托盘互借修复成功 0。
+  - KPI：near/mid/deep=0/0/2，救回率=0.00%，pair效率=0.00%。
+  - 耗时拆解：packing=2.44s，main_topup=0.05s，retry=0.00s，failed_pool=2.27s，repack=3.18s，total=5.81s。
+========================================
+统计汇总：总托盘 12，指数达标 10，未达标 2，未知 0，平均缺口 96.00，最大缺口 144.00，失败托盘互借修复成功 0
+KPI汇总：near/mid/deep=0/0/2，pair尝试=0，pair改进=0，pair效率=0.00%
+耗时汇总：packing=2.44s，main_topup=0.05s，retry=0.00s，repack=3.18s，end_to_end=11.07s
+========================================
+========================================
+最终装箱方案已保存至：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\output\packing_plan_20260717_213333.json
+托盘统计Excel已保存至：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\output\packing_plan_summary_20260717_213333.xlsx
+========================================
+算法总运行时间：11.07 秒
+========================================
+方案另存为: E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\runtime\packing-realtime\exports\ui_packing_plan_20260717_213322.json

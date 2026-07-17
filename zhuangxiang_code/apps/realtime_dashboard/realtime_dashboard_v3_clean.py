@@ -197,7 +197,8 @@ def _write_ui_config_api_only(project_dir: Path, base_config_path: Path) -> Path
             "host": "localhost",
             "port": 3306,
             "user": "root",
-            "password": "",
+            # TODO(数据库密码): 与 packing_config.yaml → database.password 保持一致
+            "password": "123456",
             "database": "zhuangdb",
             "charset": "utf8mb4",
         }

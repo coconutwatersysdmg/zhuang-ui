@@ -71,7 +71,8 @@ _DEFAULT_DATABASE = {
     "host": "localhost",
     "port": 3306,
     "user": "root",
-    "password": "",
+    # TODO(数据库密码): 与 packing_config.yaml → database.password 保持一致；现场改正式密码
+    "password": "123456",
     "database": "zhuangdb",
     "charset": "utf8mb4",
 }

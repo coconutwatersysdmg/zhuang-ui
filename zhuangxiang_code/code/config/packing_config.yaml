@@ -85,6 +85,7 @@ database:
   host: localhost
   port: 3306
   user: root
-  password: ""
+  # TODO(数据库密码): 现场部署时改成正式密码，勿把生产密码提交到公开仓库
+  password: "123456"
   database: zhuangdb
   charset: utf8mb4
