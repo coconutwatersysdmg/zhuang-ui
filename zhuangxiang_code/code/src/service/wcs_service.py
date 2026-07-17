@@ -1,21 +1,22 @@
 """WCS 接口装箱常驻服务（HTTP 服务壳）。
 
-流程（每轮）：
-  1. POST 接口 1 reqstockinfo → 原始 JSON 落盘 input/
-  2. 过滤 MH423C → stock_to_boxes，并与上一轮不达标结转箱合并
-  3. 本轮算法输入落盘 input/packing_inputs/
-  4. run_with_boxes 装箱；FAILED 盘箱子结转至下一轮
-  5. 完整报告 + 接口 2 case 数组落盘 output/
-  6. （可选）POST 接口 2 sendpalletplanresult
-  7. 打印 [UI-RESULT] 供可视化 UI 自动刷新
+两条独立流水线（互不等待）：
 
-进程常驻，按 download_interval 秒循环，直到 Ctrl+C 或 UI 停止。
+1. 拉取器：每 download_interval 秒 POST 接口 1，过滤 MH423C 后落入
+   ``input/pending/``（未加入计算）。
+2. 装箱器：持续计算——把当前全部 pending 合并 + 上一轮 FAILED 结转箱，
+   写入 ``input/packing_inputs/``，装箱后把用过的 pending 移到
+   ``input/consumed/``（已加入计算），更新结转池，立刻进入下一轮；
+   无活时短暂休眠再轮询。
+
+可选：装箱结果推送接口 2（由 ``_PUSH_PLAN_TO_WCS`` 控制）。
 """
 
 from __future__ import annotations
 
 import json
 import shutil
+import threading
 import time
 from copy import deepcopy
 from dataclasses import dataclass
@@ -45,6 +46,8 @@ _CODE_ROOT = Path(__file__).resolve().parents[2]
 _SUPPORTED_CASE_TYPE = "MH423C"
 # False=只本地装箱/落盘，不向接口 2 推送结果（调试用，恢复推送改 True）。
 _PUSH_PLAN_TO_WCS = False
+# 装箱器空闲时轮询间隔（秒）：无 pending 且无结转时短暂等待。
+_PACK_IDLE_POLL_SEC = 2.0
 
 # TODO 输入输出地址
 # 接口1
@@ -56,6 +59,9 @@ _DEFAULT_DATA_SOURCE = {
     "mode": "api",
     # TODO(接口地址): 兜底的Mock地址
     "api_base_url": "https://3c3758c8-755a-499e-b580-76afda706e5e.mock.pstmn.io",
+    # TODO(拉取间隔): 接口1轮询间隔（秒）。这里是代码兜底默认值；
+    # 正式以 packing_config.yaml → data_source.download_interval 为准。
+    # 仅由拉取线程使用；装箱线程不算完不睡这个间隔。
     "download_interval": 200,
     "input_dir": "input",
     "bms_reference_file": "668箱子数据集.xlsx",
@@ -133,6 +139,26 @@ def _save_json(path: Path, payload) -> None:
         json.dump(payload, f, ensure_ascii=False, indent=2)
 
 
+def _load_json(path: Path) -> Dict:
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _filter_mh423c(stock_entries: List[Dict]) -> Tuple[List[Dict], int, List[str]]:
+    """保留 case_type=MH423C；返回 (kept, dropped_count, dropped_types)。"""
+    kept = [
+        e for e in stock_entries
+        if str(e.get("case_type") or "").strip() == _SUPPORTED_CASE_TYPE
+    ]
+    dropped = len(stock_entries) - len(kept)
+    dropped_types = sorted({
+        str(e.get("case_type"))
+        for e in stock_entries
+        if str(e.get("case_type") or "").strip() != _SUPPORTED_CASE_TYPE
+    })
+    return kept, dropped, dropped_types
+
+
 def _merge_api_and_carry_boxes(
     api_boxes: List[Dict],
     carry_boxes: List[Dict],
@@ -160,7 +186,7 @@ def _merge_api_and_carry_boxes(
 
 
 class WcsPackingService:
-    """WCS 接口模式常驻装箱服务。"""
+    """WCS 接口模式常驻服务：拉取线程 + 装箱线程独立运行。"""
 
     def __init__(
         self,
@@ -177,7 +203,46 @@ class WcsPackingService:
         self._bms_map: Dict[str, float] = {}
         # 上一轮 mpm_status=FAILED 托盘上的箱子，并入下一轮算法输入。
         self._carry_boxes: List[Dict] = []
+        self._pending_lock = threading.Lock()
+        self._stop = threading.Event()
+        self._ensure_dirs()
         self._reload_reference_data()
+
+    # ------------------------------------------------------------------ dirs
+    @property
+    def pending_dir(self) -> Path:
+        """未加入计算的库存 JSON。"""
+        return self._ds.input_dir / "pending"
+
+    @property
+    def consumed_dir(self) -> Path:
+        """已加入计算的库存 JSON。"""
+        return self._ds.input_dir / "consumed"
+
+    @property
+    def raw_dir(self) -> Path:
+        """接口 1 原始响应备份。"""
+        return self._ds.input_dir / "raw"
+
+    @property
+    def packing_inputs_dir(self) -> Path:
+        return self._ds.input_dir / "packing_inputs"
+
+    @property
+    def bad_dir(self) -> Path:
+        return self._ds.input_dir / "bad"
+
+    def _ensure_dirs(self) -> None:
+        for d in (
+            self._ds.input_dir,
+            self.pending_dir,
+            self.consumed_dir,
+            self.raw_dir,
+            self.packing_inputs_dir,
+            self.bad_dir,
+            self._ds.output_dir,
+        ):
+            d.mkdir(parents=True, exist_ok=True)
 
     def _reload_reference_data(self) -> None:
         bms_path = self._ds.bms_reference_file
@@ -196,179 +261,266 @@ class WcsPackingService:
         wf._report_persister = NullReportPersister()
         return wf
 
-    def run_once(self) -> bool:
-        """执行一轮：拉库存 → 合并结转 → 装箱 → 本地落盘 →（可选）推接口 2。"""
+    # ------------------------------------------------------------------ fetch
+    def fetch_once(self) -> Optional[Path]:
+        """拉一次接口 1，过滤后写入 pending（未加入计算）。返回 pending 路径。"""
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        input_dir = self._ds.input_dir
-        processed_dir = input_dir / "processed"
-        bad_dir = input_dir / "bad"
-        # 剔除非 MH423C 后的库存，便于对照原始 JSON
-        filtered_dir = input_dir / "filtered_mh423c"
-        # 每轮真正喂给算法的输入（接口新箱 + 结转不达标箱）
-        packing_inputs_dir = input_dir / "packing_inputs"
-        for d in (
-            input_dir,
-            processed_dir,
-            bad_dir,
-            filtered_dir,
-            packing_inputs_dir,
-            self._ds.output_dir,
-        ):
-            d.mkdir(parents=True, exist_ok=True)
+        print(f"\n{'=' * 60}")
+        print(f"[WCS-拉] {ts}：拉取接口 1 …")
+        stock_body = fetch_stock_response(self._ds.api_base_url)
 
-        stock_path = input_dir / f"{ts}.json"
-        try:
-            print(f"\n{'=' * 60}")
-            print(f"[WCS] 第 {ts} 轮：拉取接口 1 …")
-            stock_body = fetch_stock_response(self._ds.api_base_url)
-            _save_json(stock_path, stock_body)
-            print(f"[WCS] 接口 1 原始响应已保存：{stock_path}")
+        raw_path = self.raw_dir / f"{ts}.json"
+        _save_json(raw_path, stock_body)
+        print(f"[WCS-拉] 原始响应已保存：{raw_path}")
 
-            stock_entries = stock_body.get("data") or []
-            print(f"[WCS] 库存品类数：{len(stock_entries)}")
-
-            kept = [
-                e for e in stock_entries
-                if str(e.get("case_type") or "").strip() == _SUPPORTED_CASE_TYPE
-            ]
-            dropped = len(stock_entries) - len(kept)
-            if dropped:
-                dropped_types = sorted({
-                    str(e.get("case_type"))
-                    for e in stock_entries
-                    if str(e.get("case_type") or "").strip() != _SUPPORTED_CASE_TYPE
-                })
-                print(
-                    f"[WCS] 已剔除 case_type≠{_SUPPORTED_CASE_TYPE} 的品类 "
-                    f"{dropped} 条（类型：{dropped_types}），"
-                    f"保留 {len(kept)} 条参与装箱。"
-                )
-            stock_entries = kept
-
-            filtered_body = {
-                "code": stock_body.get("code", 0),
-                "msg": stock_body.get("msg", "ok"),
-                "data": stock_entries,
-                "filter": {
-                    "kept_case_type": _SUPPORTED_CASE_TYPE,
-                    "raw_count": len(stock_body.get("data") or []),
-                    "kept_count": len(stock_entries),
-                    "dropped_count": dropped,
-                },
-            }
-            filtered_path = filtered_dir / f"{ts}.json"
-            _save_json(filtered_path, filtered_body)
-            print(f"[WCS] 剔除后库存已保存：{filtered_path}")
-
-            pallet_dims = default_pallet_dims_map(self._config_path)
-            api_boxes = stock_to_boxes(stock_entries, self._bms_map, pallet_dims)
-            carry_in = list(self._carry_boxes)
-            boxes, carry_for_input = _merge_api_and_carry_boxes(
-                api_boxes, carry_in, ts
-            )
+        stock_entries = stock_body.get("data") or []
+        kept, dropped, dropped_types = _filter_mh423c(stock_entries)
+        if dropped:
             print(
-                f"[WCS] 本轮输入：接口展开 {len(api_boxes)} 箱 + "
-                f"结转不达标 {len(carry_for_input)} 箱 → 合计 {len(boxes)} 箱。"
+                f"[WCS-拉] 已剔除 case_type≠{_SUPPORTED_CASE_TYPE} 的品类 "
+                f"{dropped} 条（类型：{dropped_types}），保留 {len(kept)} 条。"
             )
+        else:
+            print(f"[WCS-拉] 库存品类数：{len(kept)}（均为 {_SUPPORTED_CASE_TYPE}）")
 
-            packing_input_path = packing_inputs_dir / f"{ts}.json"
-            _save_json(
-                packing_input_path,
-                {
-                    "timestamp": ts,
-                    "from_api_count": len(api_boxes),
-                    "from_carry_count": len(carry_for_input),
-                    "merged_count": len(boxes),
-                    "from_api": api_boxes,
-                    "from_carry": carry_for_input,
-                    "boxes": boxes,
-                },
-            )
-            print(f"[WCS] 本轮算法输入已保存：{packing_input_path}")
+        pending_body = {
+            "timestamp": ts,
+            "compute_status": "pending",  # 未加入计算
+            "code": stock_body.get("code", 0),
+            "msg": stock_body.get("msg", "ok"),
+            "data": kept,
+            "filter": {
+                "kept_case_type": _SUPPORTED_CASE_TYPE,
+                "raw_count": len(stock_entries),
+                "kept_count": len(kept),
+                "dropped_count": dropped,
+                "dropped_types": dropped_types,
+            },
+        }
+        pending_path = self.pending_dir / f"{ts}.json"
+        with self._pending_lock:
+            _save_json(pending_path, pending_body)
+        print(f"[WCS-拉] 未加入计算 → {pending_path}")
+        return pending_path
 
-            if not boxes:
-                print("[WCS] 库存与结转均为空，跳过装箱。")
-                shutil.move(str(stock_path), str(processed_dir / stock_path.name))
-                return True
+    def _list_pending_files(self) -> List[Path]:
+        with self._pending_lock:
+            files = sorted(self.pending_dir.glob("*.json"))
+        return files
 
-            workflow = self._make_workflow()
-            report = workflow.run_with_boxes(boxes)
-            if report is None:
-                print("[WCS] 装箱失败（无有效报告）；结转池保持不变。")
-                shutil.move(str(stock_path), str(bad_dir / stock_path.name))
-                return False
-
-            # 本轮 FAILED 盘箱子 → 下一轮结转（SUCCESS 视为已消化）
-            self._carry_boxes = _extract_repack_boxes(report)
-            failed_pallets = sum(
-                1
-                for p in (report.get("pallets") or [])
-                if p.get("mpm_status") == "FAILED"
-            )
-            print(
-                f"[WCS] 本轮不达标盘 {failed_pallets} 个，"
-                f"结转箱 {len(self._carry_boxes)} 个供下一轮。"
-            )
-
-            report_path = self._ds.output_dir / f"packing_plan_{ts}.json"
-            _save_json(report_path, report)
-            print(f"[WCS] 装箱报告已保存：{report_path}")
-
-            plan = report_to_plan_result(report)
-            plan_path = self._ds.output_dir / f"wcs_plan_{ts}.json"
-            _save_json(plan_path, plan.cases)
-            print(f"[WCS] 接口 2 发送体已保存：{plan_path}（{len(plan.cases)} 个 case）")
-
-            if _PUSH_PLAN_TO_WCS:
-                push_body = push_plan_result(self._ds.api_base_url, plan.cases)
-                print(
-                    f"[WCS] 接口 2 推送成功：code={push_body.get('code')}, "
-                    f"msg={push_body.get('msg')}"
-                )
-            else:
-                print("[WCS] 已跳过接口 2 推送（仅本地保存）。")
-
-            map_path = self._ds.output_dir / f"wcs_plan_map_{ts}.json"
-            _save_json(
-                map_path,
-                {uid: pallet for uid, pallet in plan.plan_by_unique_id.items()},
-            )
-            print(f"[WCS] box_unique_id 映射已保存：{map_path}")
-
-            print(f"[UI-RESULT] {report_path.resolve()}")
-            shutil.move(str(stock_path), str(processed_dir / stock_path.name))
-            return True
-
-        except Exception as exc:
-            print(f"[WCS] 本轮异常：{exc}")
-            if stock_path.exists():
+    def _mark_pending_consumed(self, paths: List[Path], pack_ts: str) -> None:
+        """把本轮用过的 pending 标成已加入计算，并移到 consumed/。"""
+        with self._pending_lock:
+            for src in paths:
+                if not src.exists():
+                    continue
                 try:
-                    shutil.move(str(stock_path), str(bad_dir / stock_path.name))
-                except Exception:
+                    body = _load_json(src)
+                except (OSError, json.JSONDecodeError):
+                    body = {}
+                body["compute_status"] = "consumed"  # 已加入计算
+                body["consumed_at"] = pack_ts
+                dst = self.consumed_dir / src.name
+                if dst.exists():
+                    dst = self.consumed_dir / f"{src.stem}_{pack_ts}{src.suffix}"
+                _save_json(dst, body)
+                try:
+                    src.unlink()
+                except OSError:
                     pass
+                print(f"[WCS-装] 已加入计算 → {dst}")
+
+    # ------------------------------------------------------------------ pack
+    def pack_once(self) -> bool:
+        """消化当前全部 pending + 结转箱，装箱一轮。
+
+        Returns:
+            True=本轮有执行装箱（或明确处理了空输入后的结转/pending）；
+            False=无 pending 且无结转，调用方应短暂休眠。
+        """
+        pending_files = self._list_pending_files()
+        carry_in = list(self._carry_boxes)
+        if not pending_files and not carry_in:
             return False
 
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        print(f"\n{'=' * 60}")
+        print(
+            f"[WCS-装] {ts}：pending={len(pending_files)} 份，"
+            f"结转={len(carry_in)} 箱"
+        )
+
+        stock_entries: List[Dict] = []
+        source_names: List[str] = []
+        for path in pending_files:
+            try:
+                body = _load_json(path)
+            except (OSError, json.JSONDecodeError) as exc:
+                print(f"[WCS-装] 读取 pending 失败，跳过 {path.name}：{exc}")
+                continue
+            entries = body.get("data") or []
+            stock_entries.extend(entries)
+            source_names.append(path.name)
+
+        # 已确定本轮要吃掉的 pending：先标 consumed，避免与拉取线程竞态重复消费
+        if pending_files:
+            self._mark_pending_consumed(pending_files, ts)
+
+        pallet_dims = default_pallet_dims_map(self._config_path)
+        api_boxes = stock_to_boxes(stock_entries, self._bms_map, pallet_dims)
+        boxes, carry_for_input = _merge_api_and_carry_boxes(api_boxes, carry_in, ts)
+        print(
+            f"[WCS-装] 本轮输入：pending 展开 {len(api_boxes)} 箱 + "
+            f"结转 {len(carry_for_input)} 箱 → 合计 {len(boxes)} 箱"
+            f"（来源文件：{source_names or '无'}）"
+        )
+
+        packing_input_path = self.packing_inputs_dir / f"{ts}.json"
+        _save_json(
+            packing_input_path,
+            {
+                "timestamp": ts,
+                "pending_files": source_names,
+                "from_api_count": len(api_boxes),
+                "from_carry_count": len(carry_for_input),
+                "merged_count": len(boxes),
+                "from_api": api_boxes,
+                "from_carry": carry_for_input,
+                "boxes": boxes,
+            },
+        )
+        print(f"[WCS-装] 算法输入已保存：{packing_input_path}")
+
+        if not boxes:
+            print("[WCS-装] 合并后无箱，跳过装箱。")
+            return True
+
+        try:
+            workflow = self._make_workflow()
+            report = workflow.run_with_boxes(boxes)
+        except Exception as exc:
+            print(f"[WCS-装] 装箱异常：{exc}；本轮输入退回结转池，避免丢箱。")
+            self._carry_boxes = boxes
+            bad_path = self.bad_dir / f"pack_{ts}.json"
+            _save_json(
+                bad_path,
+                {"timestamp": ts, "error": str(exc), "pending_files": source_names},
+            )
+            return True
+
+        if report is None:
+            print("[WCS-装] 装箱失败（无有效报告）；本轮输入退回结转池，避免丢箱。")
+            self._carry_boxes = boxes
+            return True
+
+        self._carry_boxes = _extract_repack_boxes(report)
+        failed_pallets = sum(
+            1
+            for p in (report.get("pallets") or [])
+            if p.get("mpm_status") == "FAILED"
+        )
+        print(
+            f"[WCS-装] 不达标盘 {failed_pallets} 个，"
+            f"结转箱 {len(self._carry_boxes)} 个供下一轮；立刻继续。"
+        )
+
+        report_path = self._ds.output_dir / f"packing_plan_{ts}.json"
+        _save_json(report_path, report)
+        print(f"[WCS-装] 装箱报告已保存：{report_path}")
+
+        plan = report_to_plan_result(report)
+        plan_path = self._ds.output_dir / f"wcs_plan_{ts}.json"
+        _save_json(plan_path, plan.cases)
+        print(f"[WCS-装] 接口 2 发送体已保存：{plan_path}（{len(plan.cases)} 个 case）")
+
+        if _PUSH_PLAN_TO_WCS:
+            try:
+                push_body = push_plan_result(self._ds.api_base_url, plan.cases)
+                print(
+                    f"[WCS-装] 接口 2 推送成功：code={push_body.get('code')}, "
+                    f"msg={push_body.get('msg')}"
+                )
+            except Exception as exc:
+                print(f"[WCS-装] 接口 2 推送失败：{exc}")
+        else:
+            print("[WCS-装] 已跳过接口 2 推送（仅本地保存）。")
+
+        map_path = self._ds.output_dir / f"wcs_plan_map_{ts}.json"
+        _save_json(
+            map_path,
+            {uid: pallet for uid, pallet in plan.plan_by_unique_id.items()},
+        )
+        print(f"[UI-RESULT] {report_path.resolve()}")
+        return True
+
+    # ------------------------------------------------------------------ loops
+    def _fetch_loop(self) -> None:
+        """拉取线程：立即首拉，之后每 download_interval 秒一次。"""
+        while not self._stop.is_set():
+            try:
+                self.fetch_once()
+            except Exception as exc:
+                print(f"[WCS-拉] 本轮拉取异常：{exc}")
+            # TODO(拉取间隔): 仅拉取线程按秒等待；与装箱无关
+            if self._stop.wait(self._ds.download_interval):
+                break
+
+    def _pack_loop(self) -> None:
+        """装箱线程：有 pending 或结转就算；空闲则短睡再轮询。"""
+        while not self._stop.is_set():
+            try:
+                self._reload_reference_data()
+                did_work = self.pack_once()
+            except Exception as exc:
+                print(f"[WCS-装] 循环异常：{exc}")
+                did_work = True  # 避免异常时疯狂空转
+            if did_work:
+                continue  # 算完立刻看下一批 pending / 结转
+            if self._stop.wait(_PACK_IDLE_POLL_SEC):
+                break
+
     def run_loop(self) -> None:
-        """常驻循环：立即执行首轮，之后每 download_interval 秒一轮。"""
+        """启动拉取 + 装箱双线程，直到 Ctrl+C / stop。"""
         print("=" * 60)
-        print("WCS 接口装箱服务（常驻模式）")
+        print("WCS 接口装箱服务（双流水线）")
         print(f"  接口地址：{self._ds.api_base_url}")
-        print(f"  拉取间隔：{self._ds.download_interval} 秒")
-        print(f"  库存目录：{self._ds.input_dir}")
+        print(f"  拉取间隔：{self._ds.download_interval} 秒（仅拉取线程）")
+        print(f"  未加入计算：{self.pending_dir}")
+        print(f"  已加入计算：{self.consumed_dir}")
+        print(f"  算法输入：{self.packing_inputs_dir}")
         print(f"  输出目录：{self._ds.output_dir}")
         print(f"  BMS 参考：{self._ds.bms_reference_file}")
-        print("  结转：上一轮 FAILED 盘箱子并入下一轮输入")
+        print("  装箱：合并全部 pending + FAILED 结转，算完立刻下一轮")
         if self._config_path:
             print(f"  约束配置：{self._config_path}")
         print("  按 Ctrl+C 或由 UI 停止按钮结束进程")
         print("=" * 60)
 
+        fetch_thread = threading.Thread(
+            target=self._fetch_loop, name="wcs-fetch", daemon=True
+        )
+        pack_thread = threading.Thread(
+            target=self._pack_loop, name="wcs-pack", daemon=True
+        )
+        fetch_thread.start()
+        pack_thread.start()
         try:
-            while True:
-                self._reload_reference_data()
-                self.run_once()
-                print(f"[WCS] 等待 {self._ds.download_interval} 秒后下一轮 …")
-                for _ in range(self._ds.download_interval):
-                    time.sleep(1)
+            while fetch_thread.is_alive() or pack_thread.is_alive():
+                fetch_thread.join(timeout=0.5)
+                pack_thread.join(timeout=0.5)
         except KeyboardInterrupt:
-            print("[WCS] 收到停止信号，服务已结束。")
+            print("[WCS] 收到停止信号，正在结束 …")
+            self._stop.set()
+            fetch_thread.join(timeout=5)
+            pack_thread.join(timeout=5)
+            print("[WCS] 服务已结束。")
+
+    # 兼容旧入口：单次串行（调试用）
+    def run_once(self) -> bool:
+        """调试：拉一次 + 装一次（串行）。正式常驻请用 run_loop。"""
+        try:
+            self.fetch_once()
+        except Exception as exc:
+            print(f"[WCS] run_once 拉取失败：{exc}")
+            return False
+        return self.pack_once()
