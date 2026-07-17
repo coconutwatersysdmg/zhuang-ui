@@ -1,6 +1,6 @@
 {
-  "timestamp": "20260717_174351",
-  "compute_status": "pending",
+  "timestamp": "20260717_174746",
+  "compute_status": "consumed",
   "code": 0,
   "msg": "ok",
   "data": [
@@ -27804,5 +27804,6 @@
       "MH110",
       "WR246"
     ]
-  }
+  },
+  "consumed_at": "20260717_174755"
 }
