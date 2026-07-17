@@ -180,16 +180,27 @@ def _write_ui_config_api_only(project_dir: Path, base_config_path: Path) -> Path
     bms_ref = (config.get("data_source") or {}).get("bms_reference_file") or base_excel or "668箱子数据集.xlsx"
 
     config["run_mode"] = "normal"
+    # 保留 base 里的 database 段（读/写 zhuangdb）；只覆盖 data_source
+    prev_ds = config.get("data_source") or {}
     config["data_source"] = {
         "mode": "api",
-        "api_base_url": (config.get("data_source") or {}).get(
+        "api_base_url": prev_ds.get(
             "api_base_url",
             "https://3c3758c8-755a-499e-b580-76afda706e5e.mock.pstmn.io",
         ),
-        "download_interval": int((config.get("data_source") or {}).get("download_interval", 200) or 200),
-        "input_dir": (config.get("data_source") or {}).get("input_dir", "input"),
+        "download_interval": int(prev_ds.get("download_interval", 200) or 200),
+        "input_dir": prev_ds.get("input_dir", "input"),
         "bms_reference_file": bms_ref,
     }
+    if not config.get("database"):
+        config["database"] = {
+            "host": "localhost",
+            "port": 3306,
+            "user": "root",
+            "password": "",
+            "database": "zhuangdb",
+            "charset": "utf8mb4",
+        }
 
     temp_dir = _runtime_temp_dir(project_dir)
     temp_dir.mkdir(parents=True, exist_ok=True)

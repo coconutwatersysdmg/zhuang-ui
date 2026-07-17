@@ -75,7 +75,16 @@ excel_data:
 data_source:
   mode: api
   api_base_url: http://10.205.46.191:8092
-  # TODO(拉取间隔): 接口1轮询间隔（秒）。仅拉取线程使用；装箱线程算完即继续，不等此间隔。
+  # TODO(拉取间隔): 接口1轮询间隔（秒）。仅拉取线程使用；装箱仅在有新插入时触发。
   download_interval: 200
   input_dir: input
   bms_reference_file: selected_5000_boxes_9_1_concentrated_3orders.xlsx
+
+# TODO(数据库): localhost zhuangdb；按本机 MySQL 账号改 user/password
+database:
+  host: localhost
+  port: 3306
+  user: root
+  password: ""
+  database: zhuangdb
+  charset: utf8mb4

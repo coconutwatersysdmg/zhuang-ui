@@ -8,3 +8,4 @@ numpy==1.22.4         # 小箱阈值检测等数值计算
 openpyxl==3.0.7       # pandas 读写 .xlsx 的引擎（必装）
 PyYAML==5.4.1         # 解析 config/packing_config.yaml
 requests==2.31.0      # WCS 接口模式 HTTP 调用（接口 1/2）
+PyMySQL==1.0.2        # WCS 接口模式读写 zhuangdb.wcs_stock_box
