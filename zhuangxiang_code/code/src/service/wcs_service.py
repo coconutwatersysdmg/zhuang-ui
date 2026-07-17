@@ -2,12 +2,13 @@
 
 两条独立流水线（互不等待）：
 
-1. 拉取器：每 download_interval 秒 POST 接口 1，过滤 MH423C 后落入
-   ``input/pending/``（未加入计算）。
-2. 装箱器：持续计算——把当前全部 pending 合并 + 上一轮 FAILED 结转箱，
-   写入 ``input/packing_inputs/``，装箱后把用过的 pending 移到
-   ``input/consumed/``（已加入计算），更新结转池，立刻进入下一轮；
-   无活时短暂休眠再轮询。
+1. 拉取器：每 download_interval 秒 POST 接口 1；
+   原始响应 → ``input/raw/``；
+   过滤 MH423C 后 → ``input/pending/``（未加入计算）。
+2. 装箱器：监听 ``input/pending/``。仅当该目录出现新文件时开算——
+   合并当前全部 pending + 上一轮 FAILED 结转，写入 ``input/packing_inputs/``，
+   用过的 pending 移到 ``input/consumed/``；算完若 pending 无新变化则暂停，
+   避免仅用不达标结转箱反复空转。
 
 可选：装箱结果推送接口 2（由 ``_PUSH_PLAN_TO_WCS`` 控制）。
 """
@@ -15,9 +16,7 @@
 from __future__ import annotations
 
 import json
-import shutil
 import threading
-import time
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
@@ -159,6 +158,57 @@ def _filter_mh423c(stock_entries: List[Dict]) -> Tuple[List[Dict], int, List[str
     return kept, dropped, dropped_types
 
 
+def _product_code_key(value) -> Optional[str]:
+    """规范化 product_code；空值返回 None（无法按码去重，原样保留）。"""
+    if value is None or value == "":
+        return None
+    return str(value).strip()
+
+
+def _dedupe_by_product_code(
+    items: List[Dict],
+    *,
+    keep_last: bool = True,
+) -> Tuple[List[Dict], int]:
+    """按 product_code 去重；无 product_code 的条目全部保留。
+
+    Args:
+        items: 库存品类或已展开的箱子列表。
+        keep_last: True=同码保留后出现的（多份 pending 时偏新）；
+            False=保留先出现的（合并后 api 优先于结转）。
+
+    Returns:
+        (deduped_list, dropped_duplicate_count)
+    """
+    if keep_last:
+        by_code: Dict[str, Dict] = {}
+        no_code: List[Dict] = []
+        for item in items:
+            key = _product_code_key(item.get("product_code"))
+            if key is None:
+                no_code.append(item)
+            else:
+                by_code[key] = item
+        deduped = no_code + list(by_code.values())
+        dropped = len(items) - len(deduped)
+        return deduped, max(0, dropped)
+
+    seen: set = set()
+    deduped = []
+    dropped = 0
+    for item in items:
+        key = _product_code_key(item.get("product_code"))
+        if key is None:
+            deduped.append(item)
+            continue
+        if key in seen:
+            dropped += 1
+            continue
+        seen.add(key)
+        deduped.append(item)
+    return deduped, dropped
+
+
 def _merge_api_and_carry_boxes(
     api_boxes: List[Dict],
     carry_boxes: List[Dict],
@@ -205,6 +255,8 @@ class WcsPackingService:
         self._carry_boxes: List[Dict] = []
         self._pending_lock = threading.Lock()
         self._stop = threading.Event()
+        # 拉取写入 pending 后唤醒装箱线程（监听 pending 目录变化）
+        self._pending_wake = threading.Event()
         self._ensure_dirs()
         self._reload_reference_data()
 
@@ -301,12 +353,24 @@ class WcsPackingService:
         with self._pending_lock:
             _save_json(pending_path, pending_body)
         print(f"[WCS-拉] 未加入计算 → {pending_path}")
+        self._pending_wake.set()  # 通知装箱线程：pending 有新数据
         return pending_path
 
     def _list_pending_files(self) -> List[Path]:
         with self._pending_lock:
             files = sorted(self.pending_dir.glob("*.json"))
         return files
+
+    def _pending_snapshot(self) -> Tuple[Tuple[str, int], ...]:
+        """pending 目录快照 (文件名, mtime_ns)，用于判断是否有新接口数据。"""
+        with self._pending_lock:
+            out = []
+            for p in sorted(self.pending_dir.glob("*.json")):
+                try:
+                    out.append((p.name, p.stat().st_mtime_ns))
+                except OSError:
+                    out.append((p.name, 0))
+            return tuple(out)
 
     def _mark_pending_consumed(self, paths: List[Path], pack_ts: str) -> None:
         """把本轮用过的 pending 标成已加入计算，并移到 consumed/。"""
@@ -334,13 +398,16 @@ class WcsPackingService:
     def pack_once(self) -> bool:
         """消化当前全部 pending + 结转箱，装箱一轮。
 
+        仅当 ``pending/`` 有文件时才开算（必须有新的接口数据）；
+        不允许仅用结转不达标箱单独反复计算。
+
         Returns:
-            True=本轮有执行装箱（或明确处理了空输入后的结转/pending）；
-            False=无 pending 且无结转，调用方应短暂休眠。
+            True=本轮执行了装箱流程；False=pending 为空，应暂停等待目录变化。
         """
         pending_files = self._list_pending_files()
         carry_in = list(self._carry_boxes)
-        if not pending_files and not carry_in:
+        # 关键：没有新接口数据就不算，避免不达标箱空转重算
+        if not pending_files:
             return False
 
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -366,12 +433,31 @@ class WcsPackingService:
         if pending_files:
             self._mark_pending_consumed(pending_files, ts)
 
+        # 多份 pending 合并后按 product_code 去重（同码保留较新的一份）
+        raw_entry_count = len(stock_entries)
+        stock_entries, stock_dup_dropped = _dedupe_by_product_code(
+            stock_entries, keep_last=True
+        )
+        if stock_dup_dropped:
+            print(
+                f"[WCS-装] pending 按 product_code 去重：{raw_entry_count} → "
+                f"{len(stock_entries)}（去掉重复 {stock_dup_dropped}）"
+            )
+
         pallet_dims = default_pallet_dims_map(self._config_path)
         api_boxes = stock_to_boxes(stock_entries, self._bms_map, pallet_dims)
         boxes, carry_for_input = _merge_api_and_carry_boxes(api_boxes, carry_in, ts)
+        # pending 与结转之间再去重：同码优先保留 pending（先出现），丢掉结转重复
+        before_box_count = len(boxes)
+        boxes, box_dup_dropped = _dedupe_by_product_code(boxes, keep_last=False)
+        if box_dup_dropped:
+            print(
+                f"[WCS-装] 与结转按 product_code 去重：{before_box_count} → "
+                f"{len(boxes)}（去掉重复 {box_dup_dropped}）"
+            )
         print(
             f"[WCS-装] 本轮输入：pending 展开 {len(api_boxes)} 箱 + "
-            f"结转 {len(carry_for_input)} 箱 → 合计 {len(boxes)} 箱"
+            f"结转 {len(carry_for_input)} 箱 → 去重后合计 {len(boxes)} 箱"
             f"（来源文件：{source_names or '无'}）"
         )
 
@@ -383,6 +469,8 @@ class WcsPackingService:
                 "pending_files": source_names,
                 "from_api_count": len(api_boxes),
                 "from_carry_count": len(carry_for_input),
+                "stock_dup_dropped": stock_dup_dropped,
+                "box_dup_dropped": box_dup_dropped,
                 "merged_count": len(boxes),
                 "from_api": api_boxes,
                 "from_carry": carry_for_input,
@@ -421,7 +509,8 @@ class WcsPackingService:
         )
         print(
             f"[WCS-装] 不达标盘 {failed_pallets} 个，"
-            f"结转箱 {len(self._carry_boxes)} 个供下一轮；立刻继续。"
+            f"结转箱 {len(self._carry_boxes)} 个；"
+            f"若 pending 无新文件将暂停，等待下一次接口数据。"
         )
 
         report_path = self._ds.output_dir / f"packing_plan_{ts}.json"
@@ -466,18 +555,30 @@ class WcsPackingService:
                 break
 
     def _pack_loop(self) -> None:
-        """装箱线程：有 pending 或结转就算；空闲则短睡再轮询。"""
+        """装箱线程：监听 pending/；有新接口数据才算，算完无变化则暂停。"""
+        idle_announced = False
         while not self._stop.is_set():
-            try:
-                self._reload_reference_data()
-                did_work = self.pack_once()
-            except Exception as exc:
-                print(f"[WCS-装] 循环异常：{exc}")
-                did_work = True  # 避免异常时疯狂空转
-            if did_work:
-                continue  # 算完立刻看下一批 pending / 结转
-            if self._stop.wait(_PACK_IDLE_POLL_SEC):
-                break
+            snap = self._pending_snapshot()
+            if snap:
+                idle_announced = False
+                try:
+                    self._reload_reference_data()
+                    self.pack_once()
+                except Exception as exc:
+                    print(f"[WCS-装] 循环异常：{exc}")
+                # 若装箱期间又写入了新 pending，下一圈立刻继续；否则进入等待
+                continue
+
+            # pending 无文件：停止计算（结转箱待命，不单独重算）
+            if not idle_announced:
+                print(
+                    f"[WCS-装] 监听 {self.pending_dir}：暂无新接口数据，"
+                    f"暂停计算（结转待命 {len(self._carry_boxes)} 箱）。"
+                )
+                idle_announced = True
+            self._pending_wake.clear()
+            # 被拉取线程 set，或超时后再看一眼目录（防止漏信号）
+            self._pending_wake.wait(timeout=_PACK_IDLE_POLL_SEC)
 
     def run_loop(self) -> None:
         """启动拉取 + 装箱双线程，直到 Ctrl+C / stop。"""
@@ -485,12 +586,13 @@ class WcsPackingService:
         print("WCS 接口装箱服务（双流水线）")
         print(f"  接口地址：{self._ds.api_base_url}")
         print(f"  拉取间隔：{self._ds.download_interval} 秒（仅拉取线程）")
-        print(f"  未加入计算：{self.pending_dir}")
+        print(f"  接口原始：{self.raw_dir}")
+        print(f"  未加入计算（监听）：{self.pending_dir}")
         print(f"  已加入计算：{self.consumed_dir}")
         print(f"  算法输入：{self.packing_inputs_dir}")
         print(f"  输出目录：{self._ds.output_dir}")
         print(f"  BMS 参考：{self._ds.bms_reference_file}")
-        print("  装箱：合并全部 pending + FAILED 结转，算完立刻下一轮")
+        print("  装箱：pending 有新数据才算；无变化则暂停（结转不单独空转）")
         if self._config_path:
             print(f"  约束配置：{self._config_path}")
         print("  按 Ctrl+C 或由 UI 停止按钮结束进程")
@@ -511,6 +613,7 @@ class WcsPackingService:
         except KeyboardInterrupt:
             print("[WCS] 收到停止信号，正在结束 …")
             self._stop.set()
+            self._pending_wake.set()
             fetch_thread.join(timeout=5)
             pack_thread.join(timeout=5)
             print("[WCS] 服务已结束。")
