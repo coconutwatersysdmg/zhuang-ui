@@ -60,3 +60,4 @@ KPI汇总：near/mid/deep=0/1/21，pair尝试=0，pair改进=0，pair效率=0.00
 [WCS] box_unique_id 映射已保存：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\output\wcs_plan_map_20260712_223858.json
 [UI-RESULT] E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\output\packing_plan_20260712_223858.json
 [WCS] 等待 200 秒后下一轮 …
+[UI] 接口装箱服务已停止。

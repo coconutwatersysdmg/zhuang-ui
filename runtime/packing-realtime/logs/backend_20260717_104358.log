@@ -1,0 +1,19 @@
+[LOG] 后端日志文件：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\runtime\packing-realtime\logs\backend_20260717_104358.log
+[LOG] 接口模式：后端将每 200 秒拉取接口并自动装箱，直到点击停止。
+[CMD] D:\ProgramData\anaconda3\python.exe E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\code\run_wcs_service.py --config E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\runtime\packing-realtime\temp\ui_config_api_20260717_104358.yaml
+[WCS] 已加载 BMS 参考表：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\data\selected_5000_boxes_9_1_concentrated_3orders.xlsx
+============================================================
+WCS 接口装箱服务（常驻模式）
+  接口地址：http://10.205.46.191:8092/swagger
+  拉取间隔：200 秒
+  库存目录：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\code\input
+  输出目录：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\output
+  BMS 参考：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\data\selected_5000_boxes_9_1_concentrated_3orders.xlsx
+  约束配置：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\runtime\packing-realtime\temp\ui_config_api_20260717_104358.yaml
+  按 Ctrl+C 或由 UI 停止按钮结束进程
+============================================================
+[WCS] 已加载 BMS 参考表：E:\Homework\AA装箱\A装箱和可视化\zhuang-ui\zhuangxiang_code\data\selected_5000_boxes_9_1_concentrated_3orders.xlsx
+============================================================
+[WCS] 第 20260717_104407 轮：拉取接口 1 …
+[WCS] 本轮异常：404 Client Error: Not Found for url: http://10.205.46.191:8092/swagger/adaptor/api/wcs/reqstockinfo
+[WCS] 等待 200 秒后下一轮 …

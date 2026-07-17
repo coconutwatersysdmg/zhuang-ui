@@ -74,7 +74,7 @@ excel_data:
 #   api_base_url: http://192.168.1.100:8080
 data_source:
   mode: api
-  api_base_url: https://3c3758c8-755a-499e-b580-76afda706e5e.mock.pstmn.io
+  api_base_url: http://10.205.46.191:8092
   download_interval: 200
   input_dir: input
   bms_reference_file: selected_5000_boxes_9_1_concentrated_3orders.xlsx

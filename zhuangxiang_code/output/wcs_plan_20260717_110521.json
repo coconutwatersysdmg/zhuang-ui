@@ -1,0 +1,110 @@
+[
+  {
+    "box_index": 1,
+    "box_unique_id": "cae49c6a565644448a9fae2ec1c5c1ca",
+    "total_height": 240.0,
+    "order_id": "PAIN26270MN01S",
+    "case_group": "0",
+    "case_type": "MH423C",
+    "layers": [
+      {
+        "cartons": [
+          {
+            "length": 350.0,
+            "width": 530.0,
+            "height": 240.0,
+            "layer_id": 1,
+            "seq": 1,
+            "product_code": 30060744
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "box_index": 2,
+    "box_unique_id": "9ec2025b285d4288803262da966d43e5",
+    "total_height": 360.0,
+    "order_id": "PAIN26296EN01S",
+    "case_group": "0",
+    "case_type": "MH423C",
+    "layers": [
+      {
+        "cartons": [
+          {
+            "length": 350.0,
+            "width": 530.0,
+            "height": 120.0,
+            "layer_id": 1,
+            "seq": 1,
+            "product_code": 30060921
+          },
+          {
+            "length": 350.0,
+            "width": 530.0,
+            "height": 120.0,
+            "layer_id": 1,
+            "seq": 2,
+            "product_code": 30060911
+          },
+          {
+            "length": 350.0,
+            "width": 530.0,
+            "height": 120.0,
+            "layer_id": 1,
+            "seq": 3,
+            "product_code": 30060916
+          },
+          {
+            "length": 350.0,
+            "width": 530.0,
+            "height": 120.0,
+            "layer_id": 1,
+            "seq": 4,
+            "product_code": 30060912
+          },
+          {
+            "length": 350.0,
+            "width": 530.0,
+            "height": 120.0,
+            "layer_id": 1,
+            "seq": 5,
+            "product_code": 30060914
+          },
+          {
+            "length": 350.0,
+            "width": 530.0,
+            "height": 120.0,
+            "layer_id": 1,
+            "seq": 6,
+            "product_code": 30060915
+          },
+          {
+            "length": 350.0,
+            "width": 530.0,
+            "height": 360.0,
+            "layer_id": 1,
+            "seq": 7,
+            "product_code": 30060958
+          },
+          {
+            "length": 350.0,
+            "width": 530.0,
+            "height": 360.0,
+            "layer_id": 1,
+            "seq": 8,
+            "product_code": 30060918
+          },
+          {
+            "length": 350.0,
+            "width": 530.0,
+            "height": 360.0,
+            "layer_id": 1,
+            "seq": 9,
+            "product_code": 30060913
+          }
+        ]
+      }
+    ]
+  }
+]
