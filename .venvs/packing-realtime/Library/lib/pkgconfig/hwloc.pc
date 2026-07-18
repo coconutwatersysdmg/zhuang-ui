@@ -1,0 +1,12 @@
+prefix=/c/b/abs_21gf7p8gne/croot/libhwloc_1755246337491/_h_env/Library
+exec_prefix=${prefix}
+libdir=/c/b/abs_21gf7p8gne/croot/libhwloc_1755246337491/_h_env/Library/lib
+includedir=${prefix}/include
+
+Name: hwloc
+Description: Hardware locality detection and management library
+Version: 2.12.1
+Requires.private: 
+Cflags: -I${includedir}
+Libs: -L${libdir} -lhwloc
+Libs.private: -lgdi32    

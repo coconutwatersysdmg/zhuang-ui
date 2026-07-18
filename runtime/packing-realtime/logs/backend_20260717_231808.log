@@ -1,0 +1,21 @@
+[LOG] 后端日志文件：D:\research_code\zhuang-ui-m\runtime\packing-realtime\logs\backend_20260717_231808.log
+[LOG] 接口模式：后端将每 200 秒拉取接口并自动装箱，直到点击停止。
+[CMD] D:\research_code\zhuang-ui-m\.venvs\packing-realtime\python.exe D:\research_code\zhuang-ui-m\zhuangxiang_code\code\run_wcs_service.py --config D:\research_code\zhuang-ui-m\runtime\packing-realtime\temp\ui_config_api_20260717_231808.yaml
+[WCS] 已加载 BMS 参考表：D:\research_code\zhuang-ui-m\zhuangxiang_code\data\selected_5000_boxes_9_1_concentrated_3orders.xlsx
+============================================================
+WCS 接口装箱服务（DB 模式）
+  接口地址：http://10.205.46.191:8092
+  拉取间隔：200 秒（仅拉取）
+  原始 JSON：D:\research_code\zhuang-ui-m\zhuangxiang_code\code\input\raw
+  数据库：localhost:3306/zhuangdb 表 wcs_stock_box
+  BMS 参考：D:\research_code\zhuang-ui-m\zhuangxiang_code\data\selected_5000_boxes_9_1_concentrated_3orders.xlsx
+  输出目录：D:\research_code\zhuang-ui-m\zhuangxiang_code\output
+  触发：仅「新插入」开算；达标回写 up_to_standard=1
+  约束配置：D:\research_code\zhuang-ui-m\runtime\packing-realtime\temp\ui_config_api_20260717_231808.yaml
+  按 Ctrl+C 或由 UI 停止按钮结束进程
+============================================================
+============================================================
+[WCS-拉] 20260717_231812：拉取接口 1 …
+[WCS-装] 等待数据库新插入（有新 product_code 才开算）…
+[WCS-拉] 本轮拉取异常：HTTPConnectionPool(host='10.205.46.191', port=8092): Max retries exceeded with url: /api/wcs/reqstockinfo (Caused by ConnectTimeoutError(<HTTPConnection(host='10.205.46.191', port=8092) at 0x27070c875f0>, 'Connection to 10.205.46.191 timed out. (connect timeout=30)'))
+[UI] 接口装箱服务已停止。

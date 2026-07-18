@@ -361,10 +361,17 @@ class ResultFormatter:
         """组装最终 JSON 报告。"""
         pallets = make_json_plan_fn(final_plan, raw_boxes)
         ResultFormatter.validate_output_quality(raw_boxes, pallets)
+
+        # 装箱几何完成后再生成机器人执行顺序：只增补顺序/依赖/吸盘字段，
+        # 不改变托盘、箱子位置、尺寸、朝向或 packed_items 原始列表顺序。
+        from src.postprocess.robot_sequence import apply_robot_sequences
+        robot_sequence_summary = apply_robot_sequences(pallets)
+
         return {
             "packing_plan_id": None,
             "total_runtime_seconds": round(total_runtime, 2),
             "summary": summary_stats,
+            "robot_sequence_summary": robot_sequence_summary,
             "pallets": pallets,
         }
 

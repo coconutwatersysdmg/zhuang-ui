@@ -1,0 +1,11 @@
+prefix=D:/research_code/zhuang-ui-m/.venvs/packing-realtime/Library 
+exec_prefix=D:/research_code/zhuang-ui-m/.venvs/packing-realtime/Library 
+libdir=D:/research_code/zhuang-ui-m/.venvs/packing-realtime/Library/lib 
+includedir=D:/research_code/zhuang-ui-m/.venvs/packing-realtime/Library/include 
+modules=0 
+Name: libXML 
+Version: 2.13.9 
+Description: libXML library version2. 
+Requires: 
+Libs: -LD:/research_code/zhuang-ui-m/.venvs/packing-realtime/Library/lib -lxml2 -liconv -lz 
+Cflags: -ID:/research_code/zhuang-ui-m/.venvs/packing-realtime/Library/include/libxml2 -ID:/research_code/zhuang-ui-m/.venvs/packing-realtime/Library/include 

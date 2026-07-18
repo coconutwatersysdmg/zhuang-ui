@@ -647,9 +647,9 @@ class MainWindow(QtWidgets.QMainWindow):
         g_table = QtWidgets.QGroupBox("箱子任务明细表（业务层字段 + 稳定性补算字段）")
         table_layout = QtWidgets.QVBoxLayout(g_table)
         self.box_table = QtWidgets.QTableWidget()
-        self.box_table.setColumnCount(18)
+        self.box_table.setColumnCount(19)
         self.box_table.setHorizontalHeaderLabels([
-            "序号", "箱号", "类型", "长×宽×高(mm)", "重量(kg)", "X", "Y", "Z", "层号",
+            "原序", "机器序", "箱号", "类型", "长×宽×高(mm)", "重量(kg)", "X", "Y", "Z", "层号",
             "支撑率", "支撑面积", "承压利用", "吸附箱角", "吸盘角", "吸盘规格", "吸附矩形", "MPM", "风险"
         ])
         self.box_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeToContents)
@@ -1082,8 +1082,16 @@ class MainWindow(QtWidgets.QMainWindow):
         for seq, item in enumerate(items, start=1):
             pos = item.get("position", {}) or {}
             dims = item.get("pallet_dims", {}) or {}
+            original_sequence = int(item.get("original_packing_sequence") or seq)
+            robot_sequence_raw = item.get("robot_packing_sequence")
+            try:
+                robot_sequence = int(robot_sequence_raw) if robot_sequence_raw is not None else np.nan
+            except (TypeError, ValueError):
+                robot_sequence = np.nan
             row = {
-                "seq": seq,
+                "seq": original_sequence,
+                "original_packing_sequence": original_sequence,
+                "robot_packing_sequence": robot_sequence,
                 "box_id": safe_str(item.get("id"), str(seq)),
                 "box_type": safe_str(item.get("type"), safe_str(item.get("包装规格代码"), "--")),
                 "mass": safe_float(item.get("weight"), 0.0),
@@ -1107,6 +1115,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 "suction_rect_x_max": safe_float(item.get("suction_rect_x_max"), np.nan),
                 "suction_rect_y_min": safe_float(item.get("suction_rect_y_min"), np.nan),
                 "suction_rect_y_max": safe_float(item.get("suction_rect_y_max"), np.nan),
+                "support_predecessors": list(item.get("support_predecessors") or []),
+                "clearance_predecessors": list(item.get("clearance_predecessors") or []),
+                "body_clearance_predecessors": list(item.get("body_clearance_predecessors") or []),
+                "all_predecessors": list(item.get("all_predecessors") or []),
+                "geometric_sequence_feasible": bool(item.get("geometric_sequence_feasible", False)),
                 "pallet_L": safe_float(dims.get("length"), np.nan),
                 "pallet_W": safe_float(dims.get("width"), np.nan),
                 "pallet_H": safe_float(dims.get("height"), np.nan),
@@ -1308,10 +1321,20 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.df_eval is None:
             return
         df = self.df_eval
+        mode_text = self.cmb_sequence_mode.currentText() if hasattr(self, "cmb_sequence_mode") else "原算法顺序"
+        robot_available = (
+            mode_text == "机器人执行顺序"
+            and str((getattr(self, "current_pallet", None) or {}).get("sequence_status")) == "GEOMETRICALLY_FEASIBLE"
+            and "robot_packing_sequence" in df.columns
+            and df["robot_packing_sequence"].notna().all()
+        )
+        sort_column = "robot_packing_sequence" if robot_available else "original_packing_sequence"
         self.box_table.setRowCount(len(df))
-        for visual_row, (_, row) in enumerate(df.sort_values("seq").iterrows()):
+        for visual_row, (_, row) in enumerate(df.sort_values([sort_column, "z", "y", "x"]).iterrows()):
+            robot_seq = row.get("robot_packing_sequence", np.nan)
             vals = [
-                int(row["seq"]),
+                int(row.get("original_packing_sequence", row["seq"])),
+                "--" if pd.isna(robot_seq) else int(robot_seq),
                 row["box_id"],
                 row["box_type"],
                 f"{row['lx']:.0f}×{row['ly']:.0f}×{row['lz']:.0f}",
@@ -1339,7 +1362,7 @@ class MainWindow(QtWidgets.QMainWindow):
             for c, val in enumerate(vals):
                 item = QtWidgets.QTableWidgetItem(str(val))
                 item.setData(QtCore.Qt.UserRole, int(row.name))
-                if c in [0, 4, 5, 6, 7, 8, 9, 10, 11, 16]:
+                if c in [0, 1, 5, 6, 7, 8, 9, 10, 11, 12, 17]:
                     item.setTextAlignment(QtCore.Qt.AlignCenter)
                 if bg is not None:
                     item.setBackground(bg)
@@ -1381,8 +1404,11 @@ class MainWindow(QtWidgets.QMainWindow):
             pressure_util_text = "--"
         else:
             pressure_util_text = f"{float(pressure_util) * 100:.2f}%"
+        robot_seq = r.get("robot_packing_sequence", np.nan)
+        robot_seq_text = "--" if pd.isna(robot_seq) else str(int(robot_seq))
         text = (
-            f"序号：{int(r['seq'])}\n"
+            f"原算法序号：{int(r.get('original_packing_sequence', r['seq']))}\n"
+            f"机器人序号：{robot_seq_text}\n"
             f"箱号：{r['box_id']}\n"
             f"类型：{r['box_type']}\n"
             f"尺寸：{r['lx']:.1f} × {r['ly']:.1f} × {r['lz']:.1f} mm\n"
@@ -1398,7 +1424,10 @@ class MainWindow(QtWidgets.QMainWindow):
             f"吸盘对齐角：{r.get('suction_cup_corner', '--')}\n"
             f"吸盘规格：{r.get('suction_orientation', '--')}\n"
             f"吸盘尺寸：{fmt_num(r.get('suction_cup_x_size', np.nan), 0)} × {fmt_num(r.get('suction_cup_y_size', np.nan), 0)} mm\n"
-            f"吸盘矩形：{self.format_suction_rect(r)}\n\n"
+            f"吸盘矩形：{self.format_suction_rect(r)}\n"
+            f"支撑前置箱：{', '.join(map(str, r.get('support_predecessors', []))) or '--'}\n"
+            f"净空前置箱：{', '.join(map(str, r.get('clearance_predecessors', []))) or '--'}\n"
+            f"全部前置箱：{', '.join(map(str, r.get('all_predecessors', []))) or '--'}\n\n"
             f"风险：{r.get('risk_text', '正常')}"
         )
         self.box_detail.setPlainText(text)

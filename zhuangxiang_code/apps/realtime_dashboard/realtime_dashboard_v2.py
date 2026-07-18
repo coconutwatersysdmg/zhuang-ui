@@ -54,6 +54,12 @@ try:
         blue_red_rgba,
         categorical_rgba,
     )
+    from sequence_order import (
+        ORIGINAL_MODE_LABEL,
+        ROBOT_MODE_LABEL,
+        ordered_packed_items,
+        sequence_mode_key,
+    )
 except Exception as exc:
     raise RuntimeError(
         "Cannot import stability_business_dashboard_json.py. "
@@ -347,6 +353,7 @@ class PalletPreviewCanvas(QtWidgets.QWidget):
         self.show_suction = True
         self.only_risk = False
         self.color_mode = "按支撑风险着色"
+        self.sequence_mode = "robot"
         self.visible_count: Optional[int] = None
         self.selected_box_key = None
 
@@ -426,13 +433,15 @@ class PalletPreviewCanvas(QtWidgets.QWidget):
 
     def set_options(self, show_suction: Optional[bool] = None, only_risk: Optional[bool] = None,
                     color_mode: Optional[str] = None, visible_count: Optional[int] = None,
-                    reset_camera: bool = False):
+                    sequence_mode: Optional[str] = None, reset_camera: bool = False):
         if show_suction is not None:
             self.show_suction = bool(show_suction)
         if only_risk is not None:
             self.only_risk = bool(only_risk)
         if color_mode is not None:
             self.color_mode = str(color_mode)
+        if sequence_mode is not None:
+            self.sequence_mode = sequence_mode_key(sequence_mode)
         self.visible_count = visible_count
         self.render(preserve_camera=not reset_camera)
 
@@ -553,11 +562,8 @@ class PalletPreviewCanvas(QtWidgets.QWidget):
         key = self.selected_box_key or {}
         if not key:
             return False
-        try:
-            if key.get("seq") is not None and int(key.get("seq")) == int(seq):
-                return True
-        except Exception:
-            pass
+        # 机器人顺序会改变播放列表中的枚举序号，所以优先用稳定箱号匹配；
+        # 只有结果中缺少箱号时才退回序号匹配，避免高亮到另一只箱子。
         target_id = safe_str(key.get("box_id"), "")
         if target_id and target_id not in {"--", "-", "正常"}:
             candidates = [
@@ -567,6 +573,12 @@ class PalletPreviewCanvas(QtWidgets.QWidget):
             ]
             if target_id in candidates:
                 return True
+            return False
+        try:
+            if key.get("seq") is not None and int(key.get("seq")) == int(seq):
+                return True
+        except Exception:
+            pass
         try:
             pos = item.get("position", {}) or {}
             checks = [
@@ -635,7 +647,7 @@ class PalletPreviewCanvas(QtWidgets.QWidget):
         if not self.pallet:
             return
 
-        all_items = list((self.pallet or {}).get("packed_items", []) or [])
+        all_items = ordered_packed_items(self.pallet or {}, self.sequence_mode)
         selected_item = None
         for original_seq, candidate in enumerate(all_items, start=1):
             if self._item_matches_selected(original_seq, candidate):
@@ -709,6 +721,7 @@ class PalletPreviewCard(QtWidgets.QFrame):
         self.setObjectName("PalletPreviewCard")
         self.setProperty("selected", False)
         self.pallet = None
+        self.sequence_mode = "robot"
         self._anim_index = 0
 
         self.timer = QtCore.QTimer(self)
@@ -804,8 +817,16 @@ class PalletPreviewCard(QtWidgets.QFrame):
             index_txt = f"{mpm_total:g}/{mpm_target:g}"
         else:
             index_txt = status
+        sequence_status = safe_str(pallet.get("sequence_status"), "未生成")
+        sequence_short = {
+            "GEOMETRICALLY_FEASIBLE": "机器顺序可用",
+            "INFEASIBLE_FIXED_CORNER": "固定角点不可执行",
+            "SKIPPED_FAILED_PALLET": "失败盘不排序",
+        }.get(sequence_status, sequence_status)
         self.title.setText(pid)
-        self.sub.setText(f"状态：{status}｜箱数：{count}｜填充率：{fill_txt}｜指数：{index_txt}")
+        self.sub.setText(
+            f"状态：{status}｜箱数：{count}｜填充率：{fill_txt}｜指数：{index_txt}｜{sequence_short}"
+        )
         self.stats.setText("当前选中" if selected else "点击选择")
         self.canvas.set_pallet(pallet)
         self._apply_options()
@@ -816,7 +837,12 @@ class PalletPreviewCard(QtWidgets.QFrame):
             only_risk=self.chk_risk.isChecked(),
             color_mode=self.cmb_color.currentText(),
             visible_count=None if self._anim_index <= 0 else self._anim_index,
+            sequence_mode=self.sequence_mode,
         )
+
+    def set_sequence_mode(self, mode: str) -> None:
+        self.sequence_mode = sequence_mode_key(mode)
+        self._apply_options()
 
     def show_final(self):
         if not self.pallet:
@@ -1096,6 +1122,21 @@ class IndustrialPackingWorkbench(BaseDashboard):
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(8)
 
+        sequence_bar = QtWidgets.QFrame()
+        sequence_bar.setObjectName("ParamBox")
+        sequence_layout = QtWidgets.QHBoxLayout(sequence_bar)
+        sequence_layout.setContentsMargins(10, 6, 10, 6)
+        sequence_layout.addWidget(QtWidgets.QLabel("播放顺序"))
+        self.cmb_sequence_mode = QtWidgets.QComboBox()
+        self.cmb_sequence_mode.addItems([ROBOT_MODE_LABEL, ORIGINAL_MODE_LABEL])
+        self.cmb_sequence_mode.setToolTip("机器人执行顺序来自成功托盘的固定左上角600×800吸盘后处理；不可执行或旧结果会自动回退原算法顺序。")
+        self.cmb_sequence_mode.currentTextChanged.connect(self._on_sequence_mode_changed)
+        sequence_layout.addWidget(self.cmb_sequence_mode)
+        self.lbl_sequence_status = QtWidgets.QLabel("默认：机器人执行顺序")
+        self.lbl_sequence_status.setObjectName("SmallInfo")
+        sequence_layout.addWidget(self.lbl_sequence_status, 1)
+        layout.addWidget(sequence_bar)
+
         overview_box = QtWidgets.QFrame()
         overview_box.setObjectName("VisualFrame")
         ov_layout = QtWidgets.QVBoxLayout(overview_box)
@@ -1218,9 +1259,9 @@ class IndustrialPackingWorkbench(BaseDashboard):
         hint.setObjectName("HintLabel")
         layout.addWidget(hint)
         self.box_table = QtWidgets.QTableWidget()
-        self.box_table.setColumnCount(18)
+        self.box_table.setColumnCount(19)
         self.box_table.setHorizontalHeaderLabels([
-            "序号", "箱号", "类型", "长×宽×高(mm)", "重量(kg)", "X", "Y", "Z", "层号",
+            "原序", "机器序", "箱号", "类型", "长×宽×高(mm)", "重量(kg)", "X", "Y", "Z", "层号",
             "支撑率", "支撑面积", "承压利用", "吸附箱角", "吸盘角", "吸盘规格", "吸附矩形", "MPM", "风险",
         ])
         self.box_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeToContents)
@@ -1986,6 +2027,7 @@ class IndustrialPackingWorkbench(BaseDashboard):
         super().load_pallet(pallet)
         self._sync_visual_pallet_combo()
         self._populate_overview_cards()
+        self._on_sequence_mode_changed()
 
     def refresh_3d_scene(self, *args):
         # 主界面不再绘制单个大 3D 图；六个托盘卡片各自维护独立 3D 视图。
@@ -2005,6 +2047,33 @@ class IndustrialPackingWorkbench(BaseDashboard):
         total = len(getattr(self, "filtered_pallets", []) or [])
         return max(1, (total + 5) // 6)
 
+    def _sequence_mode(self) -> str:
+        if hasattr(self, "cmb_sequence_mode"):
+            return sequence_mode_key(self.cmb_sequence_mode.currentText())
+        return "robot"
+
+    def _on_sequence_mode_changed(self, _text: str = "") -> None:
+        mode = self._sequence_mode()
+        current = getattr(self, "current_pallet", None) or {}
+        status = safe_str(current.get("sequence_status"), "未生成")
+        if mode == "robot":
+            if status == "GEOMETRICALLY_FEASIBLE":
+                message = "机器人执行顺序：固定左上角，吸盘600×800 mm"
+            elif current:
+                message = f"机器人顺序不可用（{status}），播放自动回退原算法顺序"
+            else:
+                message = "机器人执行顺序：等待加载结果"
+        else:
+            message = "原算法顺序：保持 packed_items 原始顺序"
+        if hasattr(self, "lbl_sequence_status"):
+            self.lbl_sequence_status.setText(message)
+        for card in getattr(self, "overview_cards", []) or []:
+            card.set_sequence_mode(mode)
+        if hasattr(self, "zoom_canvas"):
+            self._apply_zoom_options()
+        if getattr(self, "df_eval", None) is not None:
+            self.fill_box_table()
+
     def _populate_overview_cards(self) -> None:
         if not hasattr(self, "overview_cards"):
             return
@@ -2019,6 +2088,7 @@ class IndustrialPackingWorkbench(BaseDashboard):
             pallet = page_items[i] if i < len(page_items) else None
             is_current = bool(pallet and safe_str(pallet.get("pallet_id"), "") == current_id)
             card.set_data(pallet, is_current, selected_key if is_current else None)
+            card.set_sequence_mode(self._sequence_mode())
         page_text = f"第 {self.overview_page + 1} / {pages} 页"
         for name in ["lbl_overview_page", "lbl_left_page"]:
             if hasattr(self, name):
@@ -2069,7 +2139,11 @@ class IndustrialPackingWorkbench(BaseDashboard):
         index_txt = f"{mpm_total:g}/{mpm_target:g}" if (not math.isnan(mpm_total) and not math.isnan(mpm_target) and mpm_target > 0) else status
 
         self.zoom_title.setText(safe_str(pallet.get("pallet_id"), "--"))
-        self.zoom_sub.setText(f"状态：{status} ｜ 箱数：{len(items)} ｜ 填充率：{fill_txt} ｜ 指数：{index_txt} ｜ 缺口：{mpm_gap:g}")
+        sequence_status = safe_str(pallet.get("sequence_status"), "未生成机器人顺序")
+        self.zoom_sub.setText(
+            f"状态：{status} ｜ 箱数：{len(items)} ｜ 填充率：{fill_txt} ｜ "
+            f"指数：{index_txt} ｜ 缺口：{mpm_gap:g} ｜ 顺序：{sequence_status}"
+        )
         self.zoom_canvas.set_pallet(pallet)
         self._apply_zoom_options()
 
@@ -2114,6 +2188,7 @@ class IndustrialPackingWorkbench(BaseDashboard):
             only_risk=self.zoom_chk_risk.isChecked(),
             color_mode=self.zoom_cmb_color.currentText(),
             visible_count=visible,
+            sequence_mode=self._sequence_mode(),
             reset_camera=reset_camera,
         )
 
@@ -2305,6 +2380,7 @@ class IndustrialPackingWorkbench(BaseDashboard):
             avg = sum(vals) / len(vals) if vals else float("nan")
             self.card_avg_fill.set_data("--" if math.isnan(avg) else f"{avg * 100:.1f}%", "全局平均托盘空间利用率", "good" if (not math.isnan(avg) and avg >= 0.85) else "normal")
         self._populate_overview_cards()
+        self._on_sequence_mode_changed()
         self._set_status("done")
 
     def clear_current_views(self) -> None:
